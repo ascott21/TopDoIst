@@ -1,15 +1,35 @@
 import { DRAG_TYPE } from './UpNext'
 import PriorityDot from './PriorityDot'
 
+const MS_PER_DAY = 1000 * 60 * 60 * 24
 const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' })
+
+function startOfDay(date) {
+  const d = new Date(date)
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
+// Whole-day difference between a due date and today (positive = future).
+function daysFromToday(date) {
+  return Math.round((startOfDay(date).getTime() - startOfDay(new Date()).getTime()) / MS_PER_DAY)
+}
 
 // Always show the concrete due date, never Todoist's recurrence text (e.g.
 // "every year") — the user just wants to see when it's next due, not that
-// it repeats.
+// it repeats. Anything within a week either direction reads as relative
+// ("in 3 days" / "3 days ago") rather than a calendar date.
 function formatDue(due) {
   if (!due?.date) return '—'
   const date = new Date(due.date)
   if (Number.isNaN(date.getTime())) return due.date
+
+  const diff = daysFromToday(date)
+  if (diff === 0) return 'Today'
+  if (diff === 1) return 'Tomorrow'
+  if (diff === -1) return 'Yesterday'
+  if (diff > 1 && diff <= 7) return `in ${diff} days`
+  if (diff < -1 && diff >= -7) return `${-diff} days ago`
   return DATE_FORMATTER.format(date)
 }
 
@@ -17,9 +37,7 @@ function isOverdue(due) {
   if (!due?.date) return false
   const date = new Date(due.date)
   if (Number.isNaN(date.getTime())) return false
-  const startOfToday = new Date()
-  startOfToday.setHours(0, 0, 0, 0)
-  return date < startOfToday
+  return daysFromToday(date) < 0
 }
 
 // Todoist's unified API v1 dropped the `url` field the old REST v2 tasks
@@ -37,10 +55,8 @@ export default function TaskTable({ ranked, projectsById }) {
     <table className="task-table">
       <thead>
         <tr>
-          <th>Task</th>
-          <th>Project</th>
+          <th className="col-task">Task</th>
           <th>Due</th>
-          <th>Priority</th>
         </tr>
       </thead>
       <tbody>
@@ -63,7 +79,7 @@ export default function TaskTable({ ranked, projectsById }) {
                 e.dataTransfer.effectAllowed = 'move'
               }}
             >
-              <td>
+              <td className="col-task">
                 <a href={taskUrl(task)} target="_blank" rel="noreferrer">
                   {task.content}
                 </a>
@@ -76,12 +92,12 @@ export default function TaskTable({ ranked, projectsById }) {
                     ))}
                   </span>
                 )}
+                <div className="task-meta">
+                  <PriorityDot priority={task.priority} />
+                  <span className="task-meta-project">{projectsById[task.project_id]?.name ?? '—'}</span>
+                </div>
               </td>
-              <td>{projectsById[task.project_id]?.name ?? '—'}</td>
               <td className={isOverdue(task.due) ? 'due-overdue' : undefined}>{formatDue(task.due)}</td>
-              <td>
-                <PriorityDot priority={task.priority} />
-              </td>
             </tr>
           )
         })}
