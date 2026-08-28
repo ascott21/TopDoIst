@@ -16,6 +16,7 @@ import UpNext from './components/UpNext'
 
 const UP_NEXT_KEY = 'topdoist:upnext'
 const ASSIGNMENT_MODE_KEY = 'topdoist:assignmentMode'
+const PROJECT_FILTER_KEY = 'topdoist:selectedProjectIds'
 
 function loadUpNextIds() {
   try {
@@ -41,13 +42,25 @@ function loadAssignmentMode() {
   }
 }
 
+// `null` means "no filter" (every project selected) — the default, and what
+// a fresh install starts with. Once the user unchecks anything, this holds
+// the explicit list of project ids still selected.
+function loadSelectedProjectIds() {
+  try {
+    const raw = localStorage.getItem(PROJECT_FILTER_KEY)
+    return raw == null ? null : JSON.parse(raw)
+  } catch {
+    return null
+  }
+}
+
 export default function App() {
   const [token, setToken] = useState(() => getStoredToken())
   const [tasks, setTasks] = useState([])
   const [projects, setProjects] = useState([])
   const [currentUserId, setCurrentUserId] = useState(null)
   const [weights, setWeights] = useState(DEFAULT_WEIGHTS)
-  const [projectFilter, setProjectFilter] = useState('all')
+  const [selectedProjectIds, setSelectedProjectIds] = useState(loadSelectedProjectIds)
   const [assignmentMode, setAssignmentMode] = useState(loadAssignmentMode)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -62,6 +75,14 @@ export default function App() {
       // ignore storage failures
     }
   }, [assignmentMode])
+  useEffect(() => {
+    try {
+      if (selectedProjectIds === null) localStorage.removeItem(PROJECT_FILTER_KEY)
+      else localStorage.setItem(PROJECT_FILTER_KEY, JSON.stringify(selectedProjectIds))
+    } catch {
+      // ignore storage failures
+    }
+  }, [selectedProjectIds])
 
   async function loadFromTodoist(activeToken) {
     setLoading(true)
@@ -103,13 +124,13 @@ export default function App() {
     const upNextSet = new Set(upNextIds)
     return tasks.filter((t) => {
       if (upNextSet.has(t.id)) return false
-      if (projectFilter !== 'all' && t.project_id !== projectFilter) return false
+      if (selectedProjectIds !== null && !selectedProjectIds.includes(t.project_id)) return false
       if (!passesAssignmentFilter(t, { mode: assignmentMode, project: projectsById[t.project_id], currentUserId })) {
         return false
       }
       return true
     })
-  }, [tasks, projectFilter, upNextIds, assignmentMode, projectsById, currentUserId])
+  }, [tasks, selectedProjectIds, upNextIds, assignmentMode, projectsById, currentUserId])
 
   const ranked = useMemo(() => rankTasks(filteredTasks, { weights }), [filteredTasks, weights])
 
@@ -123,6 +144,26 @@ export default function App() {
 
   function handleUpNextRemove(taskId) {
     setUpNextIds((prev) => prev.filter((id) => id !== taskId))
+  }
+
+  function isProjectSelected(projectId) {
+    return selectedProjectIds === null || selectedProjectIds.includes(projectId)
+  }
+
+  function handleToggleProject(projectId) {
+    setSelectedProjectIds((prev) => {
+      const current = new Set(prev === null ? projects.map((p) => p.id) : prev)
+      if (current.has(projectId)) current.delete(projectId)
+      else current.add(projectId)
+      return Array.from(current)
+    })
+  }
+
+  function handleToggleAllProjects() {
+    setSelectedProjectIds((prev) => {
+      const allSelected = prev === null || prev.length === projects.length
+      return allSelected ? [] : null
+    })
   }
 
   function handleSignOut() {
@@ -175,8 +216,9 @@ export default function App() {
         onWeightsChange={setWeights}
         onResetWeights={() => setWeights(DEFAULT_WEIGHTS)}
         projects={projects}
-        projectFilter={projectFilter}
-        onProjectFilterChange={setProjectFilter}
+        isProjectSelected={isProjectSelected}
+        onToggleProject={handleToggleProject}
+        onToggleAllProjects={handleToggleAllProjects}
         assignmentMode={assignmentMode}
         onAssignmentModeChange={setAssignmentMode}
       />

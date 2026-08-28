@@ -177,16 +177,25 @@ select {
   margin: 0 0 0.6rem;
 }
 
-.settings-section select {
-  width: 100%;
-}
-
-.radio-option {
+.radio-option,
+.checkbox-option {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   font-size: 0.9rem;
   margin: 0.5rem 0;
+}
+
+.project-filter-list {
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.checkbox-option-all {
+  font-weight: 600;
+  padding-bottom: 0.5rem;
+  margin-bottom: 0.4rem;
+  border-bottom: 1px solid var(--border);
 }
 
 .weight-controls-header {

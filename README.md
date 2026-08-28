@@ -35,7 +35,8 @@ The gear icon opens a settings panel with:
   other people: include everyone's, include only unassigned tasks plus
   your own, or only tasks assigned to you. This has no effect on tasks in
   your own (non-shared) projects — those always show.
-- **Project** — filter the list down to a single project.
+- **Project** — a checklist to show only the projects you check; there's
+  an "All projects" master checkbox too.
 - **Weights** — the three scoring sliders described above. Changes re-rank
   instantly using the tasks already loaded (no need to refetch). See
   `src/lib/scoring.js` for the exact formula.

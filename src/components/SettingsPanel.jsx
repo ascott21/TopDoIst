@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import WeightControls from './WeightControls'
+import ProjectFilter from './ProjectFilter'
 import { ASSIGNMENT_MODE_OPTIONS } from '../lib/assignment'
 
 export default function SettingsPanel({
@@ -9,8 +10,9 @@ export default function SettingsPanel({
   onWeightsChange,
   onResetWeights,
   projects,
-  projectFilter,
-  onProjectFilterChange,
+  isProjectSelected,
+  onToggleProject,
+  onToggleAllProjects,
   assignmentMode,
   onAssignmentModeChange,
 }) {
@@ -54,14 +56,12 @@ export default function SettingsPanel({
 
         <section className="settings-section">
           <h3>Project</h3>
-          <select value={projectFilter} onChange={(e) => onProjectFilterChange(e.target.value)}>
-            <option value="all">All projects</option>
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
+          <ProjectFilter
+            projects={projects}
+            isSelected={isProjectSelected}
+            onToggleProject={onToggleProject}
+            onToggleAll={onToggleAllProjects}
+          />
         </section>
 
         <section className="settings-section">
