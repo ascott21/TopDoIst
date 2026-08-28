@@ -9,19 +9,73 @@ Todoist.
 
 ## How scoring works
 
-Each task's score is a weighted combination of three signals:
+Each task's score is a weighted combination of three signals, each first
+normalized to its own small range and then scaled by its weight × 20. With
+the default weights (priority 1, due 2, staleness 0.5), each signal can
+contribute up to roughly 20, 40, and 10 points respectively, plus whatever
+label bonuses apply. The exact formula lives in `src/lib/scoring.js`; this
+just walks through it.
 
-- **Priority** — Todoist's own P1-P4 flag.
-- **Due date urgency** — overdue tasks score highest (climbing the longer
-  they've been overdue), due-today is high, and the score decays the
-  further out a due date is. Tasks with no due date get a small flat
-  baseline.
-- **Staleness** — how long ago the task was created, so old undated tasks
-  don't get buried forever.
+### Priority
 
-On top of that, labels can add a flat bonus — `urgent` and `quick-win` are
-pre-configured — so you can hand-tag something to bump it up regardless of
-its due date.
+Todoist's P1-P4 flag, linearly mapped so P4 (no priority) is 0 and P1 is 1:
+
+```
+priorityScore = (todoistPriority - 1) / 3
+```
+
+(Todoist's API represents P1 as `4` and P4 as `1` internally, hence the
+`- 1) / 3` to land on a clean 0-1 scale.) A P1 task scores a full 1.0 here;
+a P4 task scores 0.
+
+### Due date urgency
+
+This is the only signal that can exceed 1, so overdue tasks can genuinely
+dominate the ranking:
+
+- **Overdue**: starts at 1.0 the moment it's overdue and climbs toward 2.0
+  as more days pass — `1 + daysOverdue / 14`, capped at 2.0. So a task 14+
+  days overdue is maxed out.
+- **Due today or already past due-time**: flat 1.0.
+- **Due within the next week**: falls off linearly from ~0.9 (due
+  tomorrow) down to ~0.3 (due in 7 days).
+- **Due more than a week out**: keeps decaying slowly, floored at 0.1 so it
+  never hits zero.
+- **No due date at all**: a flat 0.15 — low, so it won't compete with
+  anything that has a real deadline, but not zero either.
+
+### Staleness
+
+How long ago the task was created, so an old task with no due date doesn't
+sit buried forever just because it never got scored on urgency:
+
+```
+stalenessScore = min(daysSinceCreated / 30, 1)
+```
+
+It grows linearly and caps out at 1.0 once a task is 30+ days old. A
+brand-new task contributes essentially nothing here; a month-old (or older)
+one contributes its full share.
+
+### Label bonuses
+
+Unlike the three signals above, label bonuses are a flat addition to the
+final score rather than a normalized/weighted component — they don't scale
+with the weight sliders. Two are pre-configured: `urgent` adds 15 points,
+`quick-win` adds 8. Add your own by editing `DEFAULT_LABEL_BONUSES` in
+`src/lib/scoring.js`.
+
+### Putting it together
+
+```
+total = (priorityScore  × priorityWeight  × 20)
+      + (dueScore       × dueWeight       × 20)
+      + (stalenessScore × stalenessWeight × 20)
+      + labelBonuses
+```
+
+Hovering a row in the task table shows a tooltip with that task's actual
+per-component numbers, so you can see exactly why it landed where it did.
 
 Drag any task into the **Up Next** section to pull it out of the ranking
 and line it up manually instead — order there is up to you (drag to
@@ -37,9 +91,9 @@ The gear icon opens a settings panel with:
   your own (non-shared) projects — those always show.
 - **Project** — a checklist to show only the projects you check; there's
   an "All projects" master checkbox too.
-- **Weights** — the three scoring sliders described above. Changes re-rank
-  instantly using the tasks already loaded (no need to refetch). See
-  `src/lib/scoring.js` for the exact formula.
+- **Weights** — sliders for the three scoring signals described above.
+  Changes re-rank instantly using the tasks already loaded (no need to
+  refetch).
 
 ## Setup
 
