@@ -36,8 +36,8 @@ npm run dev
 
 On first load, paste in a Todoist API token (Todoist → Settings →
 Integrations → Developer). The token is stored only in your browser's
-`localStorage` and used to call the Todoist REST API directly — it never
-passes through any server of ours.
+`localStorage` and used to call Todoist's unified API v1 directly — it
+never passes through any server of ours.
 
 ## Deploying
 

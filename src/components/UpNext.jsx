@@ -4,6 +4,12 @@ import { useState } from 'react'
 // already in Up Next onto the list reorders it instead of duplicating it.
 const DRAG_TYPE = 'application/x-topdoist-task-id'
 
+// Todoist's unified API v1 dropped the `url` field the old REST v2 tasks
+// had, so we reconstruct the web-app deep link from the task id ourselves.
+function taskUrl(task) {
+  return task.url ?? `https://todoist.com/app/task/${task.id}`
+}
+
 export default function UpNext({ tasks, projectsById, onDrop, onRemove }) {
   const [overIndex, setOverIndex] = useState(null)
   const [isOverList, setIsOverList] = useState(false)
@@ -71,7 +77,7 @@ export default function UpNext({ tasks, projectsById, onDrop, onRemove }) {
                 ⠿
               </span>
               <span className="up-next-content">
-                <a href={task.url} target="_blank" rel="noreferrer">
+                <a href={taskUrl(task)} target="_blank" rel="noreferrer">
                   {task.content}
                 </a>
                 <span className="up-next-meta">{projectsById[task.project_id]?.name ?? ''}</span>

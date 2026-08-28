@@ -7,6 +7,12 @@ function formatDue(due) {
   return due.string || due.date
 }
 
+// Todoist's unified API v1 dropped the `url` field the old REST v2 tasks
+// had, so we reconstruct the web-app deep link from the task id ourselves.
+function taskUrl(task) {
+  return task.url ?? `https://todoist.com/app/task/${task.id}`
+}
+
 export default function TaskTable({ ranked, projectsById }) {
   if (ranked.length === 0) {
     return <p className="empty">No tasks left in the list — everything's either done or in Up Next.</p>
@@ -45,7 +51,7 @@ export default function TaskTable({ ranked, projectsById }) {
             >
               <td className="col-rank">{i + 1}</td>
               <td>
-                <a href={task.url} target="_blank" rel="noreferrer">
+                <a href={taskUrl(task)} target="_blank" rel="noreferrer">
                   {task.content}
                 </a>
                 {task.labels?.length > 0 && (

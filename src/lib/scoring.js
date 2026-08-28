@@ -63,9 +63,15 @@ function dueScore(task, now) {
 // Returns a value in [0, 1] that grows with the task's age, capped at 30
 // days. Purely additive nudge for tasks that have no due date and would
 // otherwise never bubble up.
+//
+// The creation-date field name has moved around across Todoist API
+// versions (created_at / date_added / added_at), so check all of them
+// rather than assuming one.
 function stalenessScore(task, now) {
-  if (!task.created_at) return 0
-  const created = new Date(task.created_at)
+  const createdRaw = task.created_at ?? task.date_added ?? task.added_at
+  if (!createdRaw) return 0
+  const created = new Date(createdRaw)
+  if (Number.isNaN(created.getTime())) return 0
   const days = Math.max(daysBetween(created, now), 0)
   return Math.min(days / 30, 1)
 }
