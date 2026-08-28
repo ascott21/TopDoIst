@@ -1,3 +1,5 @@
+import { DRAG_TYPE } from './UpNext'
+
 const PRIORITY_LABELS = { 4: 'P1', 3: 'P2', 2: 'P3', 1: 'P4' }
 
 function formatDue(due) {
@@ -7,7 +9,7 @@ function formatDue(due) {
 
 export default function TaskTable({ ranked, projectsById }) {
   if (ranked.length === 0) {
-    return <p className="empty">No active tasks found.</p>
+    return <p className="empty">No tasks left in the list — everything's either done or in Up Next.</p>
   }
 
   return (
@@ -32,7 +34,15 @@ export default function TaskTable({ ranked, projectsById }) {
           ].join('\n')
 
           return (
-            <tr key={task.id}>
+            <tr
+              key={task.id}
+              draggable
+              className="draggable-row"
+              onDragStart={(e) => {
+                e.dataTransfer.setData(DRAG_TYPE, task.id)
+                e.dataTransfer.effectAllowed = 'move'
+              }}
+            >
               <td className="col-rank">{i + 1}</td>
               <td>
                 <a href={task.url} target="_blank" rel="noreferrer">
