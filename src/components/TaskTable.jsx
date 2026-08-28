@@ -1,10 +1,25 @@
 import { DRAG_TYPE } from './UpNext'
+import PriorityDot from './PriorityDot'
 
-const PRIORITY_LABELS = { 4: 'P1', 3: 'P2', 2: 'P3', 1: 'P4' }
+const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' })
 
+// Always show the concrete due date, never Todoist's recurrence text (e.g.
+// "every year") — the user just wants to see when it's next due, not that
+// it repeats.
 function formatDue(due) {
-  if (!due) return '—'
-  return due.string || due.date
+  if (!due?.date) return '—'
+  const date = new Date(due.date)
+  if (Number.isNaN(date.getTime())) return due.date
+  return DATE_FORMATTER.format(date)
+}
+
+function isOverdue(due) {
+  if (!due?.date) return false
+  const date = new Date(due.date)
+  if (Number.isNaN(date.getTime())) return false
+  const startOfToday = new Date()
+  startOfToday.setHours(0, 0, 0, 0)
+  return date < startOfToday
 }
 
 // Todoist's unified API v1 dropped the `url` field the old REST v2 tasks
@@ -22,16 +37,14 @@ export default function TaskTable({ ranked, projectsById }) {
     <table className="task-table">
       <thead>
         <tr>
-          <th className="col-rank">#</th>
           <th>Task</th>
           <th>Project</th>
           <th>Due</th>
           <th>Priority</th>
-          <th>Score</th>
         </tr>
       </thead>
       <tbody>
-        {ranked.map(({ task, total, breakdown }, i) => {
+        {ranked.map(({ task, breakdown }) => {
           const title = [
             `priority: ${breakdown.priority.weighted}`,
             `due: ${breakdown.due.weighted}`,
@@ -44,12 +57,12 @@ export default function TaskTable({ ranked, projectsById }) {
               key={task.id}
               draggable
               className="draggable-row"
+              title={title}
               onDragStart={(e) => {
                 e.dataTransfer.setData(DRAG_TYPE, task.id)
                 e.dataTransfer.effectAllowed = 'move'
               }}
             >
-              <td className="col-rank">{i + 1}</td>
               <td>
                 <a href={taskUrl(task)} target="_blank" rel="noreferrer">
                   {task.content}
@@ -65,10 +78,9 @@ export default function TaskTable({ ranked, projectsById }) {
                 )}
               </td>
               <td>{projectsById[task.project_id]?.name ?? '—'}</td>
-              <td>{formatDue(task.due)}</td>
-              <td>{PRIORITY_LABELS[task.priority] ?? '—'}</td>
-              <td className="col-score" title={title}>
-                {total}
+              <td className={isOverdue(task.due) ? 'due-overdue' : undefined}>{formatDue(task.due)}</td>
+              <td>
+                <PriorityDot priority={task.priority} />
               </td>
             </tr>
           )

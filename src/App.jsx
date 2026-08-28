@@ -1,12 +1,21 @@
 import { useEffect, useMemo, useState } from 'react'
-import { clearStoredToken, fetchActiveTasks, fetchProjects, getStoredToken, storeToken } from './api/todoist'
+import {
+  clearStoredToken,
+  fetchActiveTasks,
+  fetchCurrentUser,
+  fetchProjects,
+  getStoredToken,
+  storeToken,
+} from './api/todoist'
 import { DEFAULT_WEIGHTS, rankTasks } from './lib/scoring'
+import { DEFAULT_ASSIGNMENT_MODE, passesAssignmentFilter } from './lib/assignment'
 import TokenGate from './components/TokenGate'
-import WeightControls from './components/WeightControls'
+import SettingsPanel from './components/SettingsPanel'
 import TaskTable from './components/TaskTable'
 import UpNext from './components/UpNext'
 
 const UP_NEXT_KEY = 'topdoist:upnext'
+const ASSIGNMENT_MODE_KEY = 'topdoist:assignmentMode'
 
 function loadUpNextIds() {
   try {
@@ -24,28 +33,48 @@ function saveUpNextIds(ids) {
   }
 }
 
+function loadAssignmentMode() {
+  try {
+    return localStorage.getItem(ASSIGNMENT_MODE_KEY) ?? DEFAULT_ASSIGNMENT_MODE
+  } catch {
+    return DEFAULT_ASSIGNMENT_MODE
+  }
+}
+
 export default function App() {
   const [token, setToken] = useState(() => getStoredToken())
   const [tasks, setTasks] = useState([])
   const [projects, setProjects] = useState([])
+  const [currentUserId, setCurrentUserId] = useState(null)
   const [weights, setWeights] = useState(DEFAULT_WEIGHTS)
   const [projectFilter, setProjectFilter] = useState('all')
+  const [assignmentMode, setAssignmentMode] = useState(loadAssignmentMode)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [upNextIds, setUpNextIds] = useState(loadUpNextIds)
 
   useEffect(() => saveUpNextIds(upNextIds), [upNextIds])
+  useEffect(() => {
+    try {
+      localStorage.setItem(ASSIGNMENT_MODE_KEY, assignmentMode)
+    } catch {
+      // ignore storage failures
+    }
+  }, [assignmentMode])
 
   async function loadFromTodoist(activeToken) {
     setLoading(true)
     setError('')
     try {
-      const [taskData, projectData] = await Promise.all([
+      const [taskData, projectData, user] = await Promise.all([
         fetchActiveTasks(activeToken),
         fetchProjects(activeToken),
+        fetchCurrentUser(activeToken),
       ])
       setTasks(taskData)
       setProjects(projectData)
+      setCurrentUserId(user?.id ?? null)
       storeToken(activeToken)
       setToken(activeToken)
     } catch (err) {
@@ -75,9 +104,12 @@ export default function App() {
     return tasks.filter((t) => {
       if (upNextSet.has(t.id)) return false
       if (projectFilter !== 'all' && t.project_id !== projectFilter) return false
+      if (!passesAssignmentFilter(t, { mode: assignmentMode, project: projectsById[t.project_id], currentUserId })) {
+        return false
+      }
       return true
     })
-  }, [tasks, projectFilter, upNextIds])
+  }, [tasks, projectFilter, upNextIds, assignmentMode, projectsById, currentUserId])
 
   const ranked = useMemo(() => rankTasks(filteredTasks, { weights }), [filteredTasks, weights])
 
@@ -98,6 +130,7 @@ export default function App() {
     setToken('')
     setTasks([])
     setProjects([])
+    setCurrentUserId(null)
     setUpNextIds([])
   }
 
@@ -112,6 +145,9 @@ export default function App() {
         <div className="app-header-actions">
           <button type="button" onClick={() => loadFromTodoist(token)} disabled={loading}>
             {loading ? 'Refreshing…' : 'Refresh'}
+          </button>
+          <button type="button" className="icon-button" onClick={() => setSettingsOpen(true)} aria-label="Open settings">
+            ⚙
           </button>
           <button type="button" className="link-button" onClick={handleSignOut}>
             Sign out
@@ -128,27 +164,22 @@ export default function App() {
         onRemove={handleUpNextRemove}
       />
 
-      <div className="app-body">
-        <aside className="app-sidebar">
-          <WeightControls weights={weights} onChange={setWeights} onReset={() => setWeights(DEFAULT_WEIGHTS)} />
+      <main className="app-main">
+        <TaskTable ranked={ranked} projectsById={projectsById} />
+      </main>
 
-          <div className="project-filter">
-            <h2>Project</h2>
-            <select value={projectFilter} onChange={(e) => setProjectFilter(e.target.value)}>
-              <option value="all">All projects</option>
-              {projects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </aside>
-
-        <main className="app-main">
-          <TaskTable ranked={ranked} projectsById={projectsById} />
-        </main>
-      </div>
+      <SettingsPanel
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        weights={weights}
+        onWeightsChange={setWeights}
+        onResetWeights={() => setWeights(DEFAULT_WEIGHTS)}
+        projects={projects}
+        projectFilter={projectFilter}
+        onProjectFilterChange={setProjectFilter}
+        assignmentMode={assignmentMode}
+        onAssignmentModeChange={setAssignmentMode}
+      />
     </div>
   )
 }

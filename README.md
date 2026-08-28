@@ -23,9 +23,22 @@ On top of that, labels can add a flat bonus — `urgent` and `quick-win` are
 pre-configured — so you can hand-tag something to bump it up regardless of
 its due date.
 
-All three weights are adjustable live from sliders in the UI; changes
-re-rank instantly using the tasks already loaded (no need to refetch). See
-`src/lib/scoring.js` for the exact formula.
+Drag any task into the **Up Next** section to pull it out of the ranking
+and line it up manually instead — order there is up to you (drag to
+reorder), and it persists across reloads.
+
+## Settings
+
+The gear icon opens a settings panel with:
+
+- **Shared project tasks** — how to handle tasks in projects you share with
+  other people: include everyone's, include only unassigned tasks plus
+  your own, or only tasks assigned to you. This has no effect on tasks in
+  your own (non-shared) projects — those always show.
+- **Project** — filter the list down to a single project.
+- **Weights** — the three scoring sliders described above. Changes re-rank
+  instantly using the tasks already loaded (no need to refetch). See
+  `src/lib/scoring.js` for the exact formula.
 
 ## Setup
 

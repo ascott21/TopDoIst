@@ -70,3 +70,23 @@ export function fetchActiveTasks(token) {
 export function fetchProjects(token) {
   return fetchAllPages(token, '/projects')
 }
+
+// There's no plain REST-style "/user" endpoint in the unified API — current
+// user info comes back from the sync endpoint when you ask for the "user"
+// resource. We only need the id, to tell "assigned to me" apart from
+// "assigned to a collaborator" in shared projects.
+export async function fetchCurrentUser(token) {
+  const res = await fetch(`${BASE_URL}/sync`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams({ sync_token: '*', resource_types: '["user"]' }),
+  })
+  if (!res.ok) {
+    throw new Error(`Todoist API error (${res.status})`)
+  }
+  const data = await res.json()
+  return data.user ?? null
+}
