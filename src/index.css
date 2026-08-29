@@ -114,6 +114,17 @@ select {
   gap: 1rem;
 }
 
+@media (max-width: 480px) {
+  .app-header {
+    flex-wrap: wrap;
+    row-gap: 0.5rem;
+  }
+
+  .app-header h1 {
+    font-size: 1.5rem;
+  }
+}
+
 /* Settings drawer */
 .settings-overlay {
   position: fixed;
@@ -239,11 +250,53 @@ select {
   color: var(--text-muted);
 }
 
-.draggable-row {
+/* Complete checkbox — also the drag handle (see CompleteCheckbox.jsx) */
+.complete-checkbox {
+  width: 1.15rem;
+  height: 1.15rem;
+  flex-shrink: 0;
+  padding: 0;
+  border-radius: 50%;
+  border: 1.5px solid var(--text-muted);
+  background: transparent;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: grab;
+  /* Let dnd-kit's TouchSensor own touch gestures on this control instead of
+     the browser's default scroll/zoom handling. */
+  touch-action: none;
 }
 
-.draggable-row:active {
+.complete-checkbox:active {
+  cursor: grabbing;
+}
+
+.complete-checkbox.is-checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.task-table td.col-check,
+.task-table th.col-check {
+  width: 1.75rem;
+  padding-left: 0.75rem;
+  padding-right: 0.25rem;
+}
+
+.is-dragging {
+  opacity: 0.4;
+}
+
+.drag-overlay-card {
+  max-width: 260px;
+  padding: 0.5rem 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+  font-size: 0.92rem;
   cursor: grabbing;
 }
 
@@ -254,12 +307,10 @@ select {
   border-radius: 8px;
   padding: 1rem;
   margin-bottom: 1.5rem;
-  transition: border-color 0.15s, background 0.15s;
 }
 
-.up-next.is-drag-over {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 6%, var(--surface));
+.up-next-empty.is-drag-over {
+  color: var(--accent);
 }
 
 .up-next h2 {
@@ -293,20 +344,6 @@ select {
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--bg);
-  cursor: grab;
-}
-
-.up-next-item:active {
-  cursor: grabbing;
-}
-
-.up-next-item.is-drag-target {
-  border-color: var(--accent);
-}
-
-.drag-handle {
-  color: var(--text-muted);
-  user-select: none;
 }
 
 .up-next-content {

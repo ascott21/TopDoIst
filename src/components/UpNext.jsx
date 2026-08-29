@@ -1,96 +1,67 @@
-import { useState } from 'react'
+import { useDroppable } from '@dnd-kit/core'
+import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import CompleteCheckbox from './CompleteCheckbox'
+import { taskUrl, formatProjectMeta } from '../lib/taskDisplay'
 
-// Drag payload identifies where a task is coming from, so dropping a task
-// already in Up Next onto the list reorders it instead of duplicating it.
-const DRAG_TYPE = 'application/x-topdoist-task-id'
+// A dedicated droppable id for the empty state, since there are no sortable
+// items yet to collide against. Once the list has items, dropping near any
+// of them (via closestCenter) is enough — no separate container droppable
+// needed.
+export const EMPTY_DROPPABLE_ID = 'up-next-empty'
 
-// Todoist's unified API v1 dropped the `url` field the old REST v2 tasks
-// had, so we reconstruct the web-app deep link from the task id ourselves.
-function taskUrl(task) {
-  return task.url ?? `https://todoist.com/app/task/${task.id}`
-}
-
-export default function UpNext({ tasks, projectsById, onDrop, onRemove }) {
-  const [overIndex, setOverIndex] = useState(null)
-  const [isOverList, setIsOverList] = useState(false)
-
-  function handleListDragOver(e) {
-    e.preventDefault()
-    setIsOverList(true)
-  }
-
-  function handleListDrop(e) {
-    e.preventDefault()
-    setIsOverList(false)
-    setOverIndex(null)
-    const taskId = e.dataTransfer.getData(DRAG_TYPE)
-    if (!taskId) return
-    // Dropped on empty space below the last item: append to the end.
-    onDrop(taskId, tasks.length)
-  }
-
-  function handleItemDragOver(index) {
-    return (e) => {
-      e.preventDefault()
-      e.stopPropagation()
-      setOverIndex(index)
-    }
-  }
-
-  function handleItemDrop(index) {
-    return (e) => {
-      e.preventDefault()
-      e.stopPropagation()
-      setOverIndex(null)
-      setIsOverList(false)
-      const taskId = e.dataTransfer.getData(DRAG_TYPE)
-      if (!taskId) return
-      onDrop(taskId, index)
-    }
-  }
+function UpNextItem({ task, projectsById, sectionsById, isCompleting, onComplete, onRemove }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id })
+  const style = { transform: CSS.Transform.toString(transform), transition }
 
   return (
-    <section
-      className={`up-next ${isOverList ? 'is-drag-over' : ''}`}
-      onDragOver={handleListDragOver}
-      onDragLeave={() => setIsOverList(false)}
-      onDrop={handleListDrop}
-    >
-      <h2>Up Next</h2>
-      {tasks.length === 0 ? (
-        <p className="up-next-empty">Drag tasks here to line up what you'll do next.</p>
-      ) : (
-        <ol className="up-next-list">
-          {tasks.map((task, index) => (
-            <li
-              key={task.id}
-              className={`up-next-item ${overIndex === index ? 'is-drag-target' : ''}`}
-              draggable
-              onDragStart={(e) => {
-                e.dataTransfer.setData(DRAG_TYPE, task.id)
-                e.dataTransfer.effectAllowed = 'move'
-              }}
-              onDragOver={handleItemDragOver(index)}
-              onDrop={handleItemDrop(index)}
-            >
-              <span className="drag-handle" aria-hidden="true">
-                ⠿
-              </span>
-              <span className="up-next-content">
-                <a href={taskUrl(task)} target="_blank" rel="noreferrer">
-                  {task.content}
-                </a>
-                <span className="up-next-meta">{projectsById[task.project_id]?.name ?? ''}</span>
-              </span>
-              <button type="button" className="link-button" onClick={() => onRemove(task.id)}>
-                Remove
-              </button>
-            </li>
-          ))}
-        </ol>
-      )}
-    </section>
+    <li ref={setNodeRef} style={style} className={`up-next-item${isDragging ? ' is-dragging' : ''}`}>
+      <CompleteCheckbox checked={isCompleting} onComplete={() => onComplete(task.id)} dragProps={{ ...attributes, ...listeners }} />
+      <span className="up-next-content">
+        <a href={taskUrl(task)} target="_blank" rel="noreferrer">
+          {task.content}
+        </a>
+        <span className="up-next-meta">{formatProjectMeta(task, projectsById, sectionsById)}</span>
+      </span>
+      <button type="button" className="link-button" onClick={() => onRemove(task.id)}>
+        Remove
+      </button>
+    </li>
   )
 }
 
-export { DRAG_TYPE }
+export default function UpNext({ tasks, projectsById, sectionsById, completingIds, onComplete, onRemove }) {
+  const { setNodeRef, isOver } = useDroppable({ id: EMPTY_DROPPABLE_ID })
+
+  if (tasks.length === 0) {
+    return (
+      <section className="up-next" ref={setNodeRef}>
+        <h2>Up Next</h2>
+        <p className={`up-next-empty${isOver ? ' is-drag-over' : ''}`}>
+          Drag tasks here to line up what you'll do next.
+        </p>
+      </section>
+    )
+  }
+
+  return (
+    <section className="up-next">
+      <h2>Up Next</h2>
+      <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+        <ol className="up-next-list">
+          {tasks.map((task) => (
+            <UpNextItem
+              key={task.id}
+              task={task}
+              projectsById={projectsById}
+              sectionsById={sectionsById}
+              isCompleting={completingIds.has(task.id)}
+              onComplete={onComplete}
+              onRemove={onRemove}
+            />
+          ))}
+        </ol>
+      </SortableContext>
+    </section>
+  )
+}

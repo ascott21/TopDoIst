@@ -1,5 +1,7 @@
-import { DRAG_TYPE } from './UpNext'
+import { useDraggable } from '@dnd-kit/core'
 import PriorityDot from './PriorityDot'
+import CompleteCheckbox from './CompleteCheckbox'
+import { taskUrl, formatProjectMeta } from '../lib/taskDisplay'
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24
 const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' })
@@ -40,13 +42,48 @@ function isOverdue(due) {
   return daysFromToday(date) < 0
 }
 
-// Todoist's unified API v1 dropped the `url` field the old REST v2 tasks
-// had, so we reconstruct the web-app deep link from the task id ourselves.
-function taskUrl(task) {
-  return task.url ?? `https://todoist.com/app/task/${task.id}`
+function TaskRow({ task, breakdown, projectsById, sectionsById, isCompleting, onComplete }) {
+  // Deliberately not sortable — this list is algorithmically ranked, not
+  // manually reorderable. Dragging one out just needs a source; where it's
+  // dropped (Up Next) is what makes it sortable.
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: task.id })
+
+  const title = [
+    `priority: ${breakdown.priority.weighted}`,
+    `due: ${breakdown.due.weighted}`,
+    `staleness: ${breakdown.staleness.weighted}`,
+    `labels: ${breakdown.labels.weighted}`,
+  ].join('\n')
+
+  return (
+    <tr ref={setNodeRef} className={isDragging ? 'is-dragging' : undefined} title={title}>
+      <td className="col-check">
+        <CompleteCheckbox checked={isCompleting} onComplete={() => onComplete(task.id)} dragProps={{ ...attributes, ...listeners }} />
+      </td>
+      <td className="col-task">
+        <a href={taskUrl(task)} target="_blank" rel="noreferrer">
+          {task.content}
+        </a>
+        {task.labels?.length > 0 && (
+          <span className="labels">
+            {task.labels.map((l) => (
+              <span key={l} className="label-chip">
+                {l}
+              </span>
+            ))}
+          </span>
+        )}
+        <div className="task-meta">
+          <PriorityDot priority={task.priority} />
+          <span className="task-meta-project">{formatProjectMeta(task, projectsById, sectionsById)}</span>
+        </div>
+      </td>
+      <td className={isOverdue(task.due) ? 'due-overdue' : undefined}>{formatDue(task.due)}</td>
+    </tr>
+  )
 }
 
-export default function TaskTable({ ranked, projectsById }) {
+export default function TaskTable({ ranked, projectsById, sectionsById, completingIds, onComplete }) {
   if (ranked.length === 0) {
     return <p className="empty">No tasks left in the list — everything's either done or in Up Next.</p>
   }
@@ -55,52 +92,23 @@ export default function TaskTable({ ranked, projectsById }) {
     <table className="task-table">
       <thead>
         <tr>
+          <th className="col-check" aria-hidden="true"></th>
           <th className="col-task">Task</th>
           <th>Due</th>
         </tr>
       </thead>
       <tbody>
-        {ranked.map(({ task, breakdown }) => {
-          const title = [
-            `priority: ${breakdown.priority.weighted}`,
-            `due: ${breakdown.due.weighted}`,
-            `staleness: ${breakdown.staleness.weighted}`,
-            `labels: ${breakdown.labels.weighted}`,
-          ].join('\n')
-
-          return (
-            <tr
-              key={task.id}
-              draggable
-              className="draggable-row"
-              title={title}
-              onDragStart={(e) => {
-                e.dataTransfer.setData(DRAG_TYPE, task.id)
-                e.dataTransfer.effectAllowed = 'move'
-              }}
-            >
-              <td className="col-task">
-                <a href={taskUrl(task)} target="_blank" rel="noreferrer">
-                  {task.content}
-                </a>
-                {task.labels?.length > 0 && (
-                  <span className="labels">
-                    {task.labels.map((l) => (
-                      <span key={l} className="label-chip">
-                        {l}
-                      </span>
-                    ))}
-                  </span>
-                )}
-                <div className="task-meta">
-                  <PriorityDot priority={task.priority} />
-                  <span className="task-meta-project">{projectsById[task.project_id]?.name ?? '—'}</span>
-                </div>
-              </td>
-              <td className={isOverdue(task.due) ? 'due-overdue' : undefined}>{formatDue(task.due)}</td>
-            </tr>
-          )
-        })}
+        {ranked.map(({ task, breakdown }) => (
+          <TaskRow
+            key={task.id}
+            task={task}
+            breakdown={breakdown}
+            projectsById={projectsById}
+            sectionsById={sectionsById}
+            isCompleting={completingIds.has(task.id)}
+            onComplete={onComplete}
+          />
+        ))}
       </tbody>
     </table>
   )

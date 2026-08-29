@@ -1,9 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
+import { DndContext, DragOverlay, PointerSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core'
+import { arrayMove } from '@dnd-kit/sortable'
 import {
   clearStoredToken,
+  closeTask,
   fetchActiveTasks,
   fetchCurrentUser,
   fetchProjects,
+  fetchSections,
   getStoredToken,
   storeToken,
 } from './api/todoist'
@@ -12,7 +16,7 @@ import { DEFAULT_ASSIGNMENT_MODE, passesAssignmentFilter } from './lib/assignmen
 import TokenGate from './components/TokenGate'
 import SettingsPanel from './components/SettingsPanel'
 import TaskTable from './components/TaskTable'
-import UpNext from './components/UpNext'
+import UpNext, { EMPTY_DROPPABLE_ID } from './components/UpNext'
 
 const UP_NEXT_KEY = 'topdoist:upnext'
 const ASSIGNMENT_MODE_KEY = 'topdoist:assignmentMode'
@@ -58,6 +62,7 @@ export default function App() {
   const [token, setToken] = useState(() => getStoredToken())
   const [tasks, setTasks] = useState([])
   const [projects, setProjects] = useState([])
+  const [sections, setSections] = useState([])
   const [currentUserId, setCurrentUserId] = useState(null)
   const [weights, setWeights] = useState(DEFAULT_WEIGHTS)
   const [selectedProjectIds, setSelectedProjectIds] = useState(loadSelectedProjectIds)
@@ -66,6 +71,18 @@ export default function App() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [upNextIds, setUpNextIds] = useState(loadUpNextIds)
+  const [activeDragId, setActiveDragId] = useState(null)
+  // Tasks currently being marked complete: shown checked immediately, only
+  // actually removed once Todoist confirms the close.
+  const [completingIds, setCompletingIds] = useState(() => new Set())
+
+  // A single PointerSensor handles mouse, touch, and pen uniformly (Pointer
+  // Events unify all three). Using PointerSensor and TouchSensor together
+  // is a known dnd-kit footgun — both fire for the same touch interaction
+  // and race each other, so touch drags can misfire. A short hold before a
+  // drag activates means a plain tap/click still reaches the checkbox's
+  // onClick instead of starting a drag, and a touch scroll isn't hijacked.
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { delay: 200, tolerance: 6 } }))
 
   useEffect(() => saveUpNextIds(upNextIds), [upNextIds])
   useEffect(() => {
@@ -88,13 +105,15 @@ export default function App() {
     setLoading(true)
     setError('')
     try {
-      const [taskData, projectData, user] = await Promise.all([
+      const [taskData, projectData, sectionData, user] = await Promise.all([
         fetchActiveTasks(activeToken),
         fetchProjects(activeToken),
+        fetchSections(activeToken),
         fetchCurrentUser(activeToken),
       ])
       setTasks(taskData)
       setProjects(projectData)
+      setSections(sectionData)
       setCurrentUserId(user?.id ?? null)
       storeToken(activeToken)
       setToken(activeToken)
@@ -111,6 +130,7 @@ export default function App() {
   }, [])
 
   const projectsById = useMemo(() => Object.fromEntries(projects.map((p) => [p.id, p])), [projects])
+  const sectionsById = useMemo(() => Object.fromEntries(sections.map((s) => [s.id, s])), [sections])
   const tasksById = useMemo(() => Object.fromEntries(tasks.map((t) => [t.id, t])), [tasks])
 
   // Tasks the user has manually dragged into Up Next, in the order they put
@@ -134,7 +154,7 @@ export default function App() {
 
   const ranked = useMemo(() => rankTasks(filteredTasks, { weights }), [filteredTasks, weights])
 
-  function handleUpNextDrop(taskId, targetIndex) {
+  function handleUpNextInsert(taskId, targetIndex) {
     setUpNextIds((prev) => {
       const withoutTask = prev.filter((id) => id !== taskId)
       const insertAt = Math.min(targetIndex, withoutTask.length)
@@ -144,6 +164,54 @@ export default function App() {
 
   function handleUpNextRemove(taskId) {
     setUpNextIds((prev) => prev.filter((id) => id !== taskId))
+  }
+
+  function handleDragStart(event) {
+    setActiveDragId(event.active.id)
+  }
+
+  function handleDragEnd(event) {
+    setActiveDragId(null)
+    const { active, over } = event
+    if (!over) return
+
+    const activeId = active.id
+    const overId = over.id
+    const isDroppingOnUpNext = overId === EMPTY_DROPPABLE_ID || upNextIds.includes(overId)
+    if (!isDroppingOnUpNext) return // only dropping into/within Up Next does anything
+
+    const isFromUpNext = upNextIds.includes(activeId)
+    if (isFromUpNext) {
+      // Reordering within Up Next.
+      if (overId !== activeId && upNextIds.includes(overId)) {
+        setUpNextIds((prev) => arrayMove(prev, prev.indexOf(activeId), prev.indexOf(overId)))
+      }
+    } else {
+      // Pulled in from the ranked list.
+      const targetIndex = upNextIds.includes(overId) ? upNextIds.indexOf(overId) : upNextIds.length
+      handleUpNextInsert(activeId, targetIndex)
+    }
+  }
+
+  async function handleComplete(taskId) {
+    setCompletingIds((prev) => new Set(prev).add(taskId))
+    try {
+      await closeTask(token, taskId)
+      setTasks((prev) => prev.filter((t) => t.id !== taskId))
+      setUpNextIds((prev) => prev.filter((id) => id !== taskId))
+      setCompletingIds((prev) => {
+        const next = new Set(prev)
+        next.delete(taskId)
+        return next
+      })
+    } catch (err) {
+      setCompletingIds((prev) => {
+        const next = new Set(prev)
+        next.delete(taskId)
+        return next
+      })
+      setError(err.message || "Couldn't mark that task complete. Try again.")
+    }
   }
 
   function isProjectSelected(projectId) {
@@ -171,6 +239,7 @@ export default function App() {
     setToken('')
     setTasks([])
     setProjects([])
+    setSections([])
     setCurrentUserId(null)
     setUpNextIds([])
   }
@@ -178,6 +247,8 @@ export default function App() {
   if (!token) {
     return <TokenGate onSubmit={loadFromTodoist} error={error} loading={loading} />
   }
+
+  const activeDragTask = activeDragId ? tasksById[activeDragId] : null
 
   return (
     <div className="app">
@@ -198,16 +269,28 @@ export default function App() {
 
       {error && <p className="error">{error}</p>}
 
-      <UpNext
-        tasks={upNextTasks}
-        projectsById={projectsById}
-        onDrop={handleUpNextDrop}
-        onRemove={handleUpNextRemove}
-      />
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        <UpNext
+          tasks={upNextTasks}
+          projectsById={projectsById}
+          sectionsById={sectionsById}
+          completingIds={completingIds}
+          onComplete={handleComplete}
+          onRemove={handleUpNextRemove}
+        />
 
-      <main className="app-main">
-        <TaskTable ranked={ranked} projectsById={projectsById} />
-      </main>
+        <main className="app-main">
+          <TaskTable
+            ranked={ranked}
+            projectsById={projectsById}
+            sectionsById={sectionsById}
+            completingIds={completingIds}
+            onComplete={handleComplete}
+          />
+        </main>
+
+        <DragOverlay>{activeDragTask ? <div className="drag-overlay-card">{activeDragTask.content}</div> : null}</DragOverlay>
+      </DndContext>
 
       <SettingsPanel
         open={settingsOpen}

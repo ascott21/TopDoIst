@@ -71,6 +71,23 @@ export function fetchProjects(token) {
   return fetchAllPages(token, '/projects')
 }
 
+export function fetchSections(token) {
+  return fetchAllPages(token, '/sections')
+}
+
+// Marks a task complete (Todoist's term is "close"). A recurring task just
+// advances to its next occurrence rather than disappearing — either way,
+// the closed instance stops showing up here.
+export async function closeTask(token, taskId) {
+  const res = await fetch(`${BASE_URL}/tasks/${taskId}/close`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) {
+    throw new Error(`Todoist API error (${res.status})`)
+  }
+}
+
 // There's no plain REST-style "/user" endpoint in the unified API — current
 // user info comes back from the sync endpoint when you ask for the "user"
 // resource. We only need the id, to tell "assigned to me" apart from

@@ -1,11 +1,13 @@
 # TopDoist
 
 A small dashboard that scores and ranks your Todoist tasks so you can see
-what to work on next, without changing anything in Todoist itself.
+what to work on next.
 
-It's read-only by design: it fetches your active tasks, computes a score for
-each one, and shows them ranked — it never writes priorities back to
-Todoist.
+It's read-mostly by design: it fetches your active tasks, computes a score
+for each one, and shows them ranked. It never writes priorities, due dates,
+or anything else back to Todoist — the one exception is checking a task off
+directly from here (see below), since that's the whole point of getting
+through the list.
 
 ## How scoring works
 
@@ -77,9 +79,19 @@ total = (priorityScore  × priorityWeight  × 20)
 Hovering a row in the task table shows a tooltip with that task's actual
 per-component numbers, so you can see exactly why it landed where it did.
 
-Drag any task into the **Up Next** section to pull it out of the ranking
-and line it up manually instead — order there is up to you (drag to
-reorder), and it persists across reloads.
+## Up Next
+
+Drag the circle next to any task into the **Up Next** section to pull it
+out of the ranking and line it up manually instead. Order there is up to
+you — drag to reorder within the list — and it persists across reloads.
+
+That circle is both the drag handle and a "mark complete" checkbox: a
+plain tap/click checks the task off in Todoist and removes it from the
+list; a press-and-hold-then-move picks it up to drag instead. This works
+the same way with touch as with a mouse, so it's usable on a phone — the
+brief hold before a drag starts is what keeps a tap from being
+misinterpreted as a drag (and keeps a drag from being misinterpreted as a
+page scroll).
 
 ## Settings
 
@@ -94,6 +106,9 @@ The gear icon opens a settings panel with:
 - **Weights** — sliders for the three scoring signals described above.
   Changes re-rank instantly using the tasks already loaded (no need to
   refetch).
+
+Each task's project (and section, if it's in one) shows in small type
+under its title.
 
 ## Setup
 
