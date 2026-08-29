@@ -2,6 +2,7 @@ import { useDraggable } from '@dnd-kit/core'
 import PriorityDot from './PriorityDot'
 import CompleteCheckbox from './CompleteCheckbox'
 import { taskUrl, formatProjectMeta } from '../lib/taskDisplay'
+import { useCoarsePointer } from '../lib/useCoarsePointer'
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24
 const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' })
@@ -47,6 +48,8 @@ function TaskRow({ task, breakdown, projectsById, sectionsById, isCompleting, on
   // manually reorderable. Dragging one out just needs a source; where it's
   // dropped (Up Next) is what makes it sortable.
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: task.id })
+  const isCoarse = useCoarsePointer()
+  const dragProps = { ...attributes, ...listeners }
 
   const title = [
     `priority: ${breakdown.priority.weighted}`,
@@ -56,9 +59,18 @@ function TaskRow({ task, breakdown, projectsById, sectionsById, isCompleting, on
   ].join('\n')
 
   return (
-    <tr ref={setNodeRef} className={isDragging ? 'is-dragging' : undefined} title={title}>
+    <tr
+      ref={setNodeRef}
+      className={`${isDragging ? 'is-dragging' : ''} ${!isCoarse ? 'row-draggable' : ''}`}
+      title={title}
+      // On a mouse/trackpad, the whole row can start a drag (a quick click
+      // still reaches the link/checkbox — see CompleteCheckbox). On touch,
+      // keep the drag zone confined to the checkbox handle so a scroll
+      // gesture starting anywhere else on the row isn't hijacked.
+      {...(isCoarse ? {} : dragProps)}
+    >
       <td className="col-check">
-        <CompleteCheckbox checked={isCompleting} onComplete={() => onComplete(task.id)} dragProps={{ ...attributes, ...listeners }} />
+        <CompleteCheckbox checked={isCompleting} onComplete={() => onComplete(task.id)} dragProps={isCoarse ? dragProps : {}} />
       </td>
       <td className="col-task">
         <a href={taskUrl(task)} target="_blank" rel="noreferrer">

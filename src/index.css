@@ -289,6 +289,14 @@ select {
   opacity: 0.4;
 }
 
+.row-draggable {
+  cursor: grab;
+}
+
+.row-draggable:active {
+  cursor: grabbing;
+}
+
 .drag-overlay-card {
   max-width: 260px;
   padding: 0.5rem 0.75rem;

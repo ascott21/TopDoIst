@@ -81,17 +81,18 @@ per-component numbers, so you can see exactly why it landed where it did.
 
 ## Up Next
 
-Drag the circle next to any task into the **Up Next** section to pull it
-out of the ranking and line it up manually instead. Order there is up to
-you — drag to reorder within the list — and it persists across reloads.
+Drag a task into the **Up Next** section to pull it out of the ranking and
+line it up manually instead. Order there is up to you — drag to reorder
+within the list — and it persists across reloads.
 
-That circle is both the drag handle and a "mark complete" checkbox: a
-plain tap/click checks the task off in Todoist and removes it from the
-list; a press-and-hold-then-move picks it up to drag instead. This works
-the same way with touch as with a mouse, so it's usable on a phone — the
-brief hold before a drag starts is what keeps a tap from being
-misinterpreted as a drag (and keeps a drag from being misinterpreted as a
-page scroll).
+On a mouse or trackpad, click-drag anywhere on the row. On touch, the drag
+zone is deliberately confined to the small leading circle instead of the
+whole row — otherwise your finger swiping down the middle of a task to
+scroll the page would get mistaken for a drag. That circle doubles as a
+"mark complete" checkbox on both: a plain tap/click checks the task off in
+Todoist and removes it from the list; a press-and-hold-then-move picks it
+up to drag. The brief hold before a drag starts is what lets a tap still
+reach the checkbox instead of always starting a drag.
 
 ## Settings
 
