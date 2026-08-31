@@ -1,8 +1,12 @@
 // Scoring engine for ranking Todoist tasks.
 //
 // Every task gets a composite score built from three independent signals:
-//   - priority: Todoist's own P1-P4 flag
-//   - urgency: how close (or overdue) the due date is
+//   - priority: Todoist's own P1-P4 flag, weighted so each tier is worth
+//     twice the one below it
+//   - urgency: how close (or overdue) the due date is, down to the hour —
+//     due today outranks due tomorrow, and earlier in the day outranks
+//     later in the day, because it's driven by precise time remaining
+//     rather than whole-day buckets
 //   - staleness: how long the task has sat untouched, so old tasks don't
 //     get buried forever just because they lack a due date
 // Label bonuses are added on top so you can hand-tag a "quick win" or
@@ -11,6 +15,8 @@
 // Each contribution is normalized to roughly 0-1 before weighting, so the
 // weights themselves (see DEFAULT_WEIGHTS) are meaningful dials rather than
 // magic numbers tied to Todoist's internal scale.
+
+import { dueInstant } from './dueDate'
 
 export const DEFAULT_WEIGHTS = {
   priority: 1,
@@ -25,39 +31,54 @@ export const DEFAULT_LABEL_BONUSES = {
 }
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24
-
-// Todoist REST API priority is 1 (normal / P4) .. 4 (urgent / P1).
-// Normalize so p1 -> 1, p4 -> 0.
-function priorityScore(task) {
-  const p = task.priority ?? 1
-  return (p - 1) / 3
-}
+const MS_PER_HOUR = 1000 * 60 * 60
+const HOURS_PER_DAY = 24
+const WEEK_HOURS = HOURS_PER_DAY * 7
 
 function daysBetween(a, b) {
   return (b.getTime() - a.getTime()) / MS_PER_DAY
 }
 
+// Todoist REST API priority is 1 (normal / P4) .. 4 (urgent / P1). Each
+// tier is worth double the one below it (P4=1, P3=2, P2=4, P1=8),
+// normalized against the top so P1 still maxes out at 1.0 — same ceiling
+// as before, just a different curve between the tiers. P4 no longer
+// contributes exactly zero, since "zero" isn't expressible in a pure
+// doubling ratio; it now contributes a small nonzero share (1/8th of P1's).
+function priorityScore(task) {
+  const p = task.priority ?? 1
+  const rank = p - 1 // 0 for P4 ... 3 for P1
+  return Math.pow(2, rank) / 8
+}
+
 // Returns a value roughly in [0, 2]. Overdue tasks climb above 1 the longer
-// they've been overdue (capped at 2); tasks due today sit at 1; tasks due
-// further out decay toward a small floor; tasks with no due date get a low
-// flat baseline so staleness is what surfaces them instead.
+// they've been overdue (capped at 2, reached after ~14 days); not-yet-due
+// tasks decay from 1.0 (due right now) down to 0.3 (due in exactly 7 days)
+// along one continuous line, then keep decaying slowly beyond that, floored
+// at 0.1. Tasks with no due date get a low flat baseline so staleness is
+// what surfaces them instead.
+//
+// Driven by precise hours until due (not whole-day buckets), using
+// Todoist's actual due time when it has one, or end-of-day when it
+// doesn't (see dueInstant) — so a task due today always outranks one due
+// tomorrow, and earlier-in-the-day outranks later-in-the-day, at any
+// distance out.
 function dueScore(task, now) {
-  const due = task.due?.date ? new Date(task.due.date) : null
+  const due = dueInstant(task.due)
   if (!due) return 0.15
 
-  const daysUntilDue = daysBetween(now, due)
+  const hoursUntilDue = (due.getTime() - now.getTime()) / MS_PER_HOUR
 
-  if (daysUntilDue < 0) {
-    const daysOverdue = -daysUntilDue
-    return Math.min(1 + daysOverdue / 14, 2)
+  if (hoursUntilDue < 0) {
+    const hoursOverdue = -hoursUntilDue
+    return Math.min(1 + hoursOverdue / (14 * HOURS_PER_DAY), 2)
   }
-  if (daysUntilDue < 1) return 1
-  if (daysUntilDue <= 7) {
-    // linear falloff from ~0.9 (due tomorrow) to ~0.3 (due in a week)
-    return 0.9 - (daysUntilDue - 1) * ((0.9 - 0.3) / 6)
+  if (hoursUntilDue <= WEEK_HOURS) {
+    return 1 - (hoursUntilDue / WEEK_HOURS) * 0.7
   }
   // further out: keep decaying slowly, floor at 0.1
-  return Math.max(0.3 - (daysUntilDue - 7) * 0.01, 0.1)
+  const daysOut = hoursUntilDue / HOURS_PER_DAY
+  return Math.max(0.3 - (daysOut - 7) * 0.01, 0.1)
 }
 
 // Returns a value in [0, 1] that grows with the task's age, capped at 30

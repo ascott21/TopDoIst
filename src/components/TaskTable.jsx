@@ -3,6 +3,7 @@ import PriorityDot from './PriorityDot'
 import CompleteCheckbox from './CompleteCheckbox'
 import { taskUrl, formatProjectMeta } from '../lib/taskDisplay'
 import { useCoarsePointer } from '../lib/useCoarsePointer'
+import { dueCalendarDate } from '../lib/dueDate'
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24
 const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' })
@@ -21,11 +22,12 @@ function daysFromToday(date) {
 // Always show the concrete due date, never Todoist's recurrence text (e.g.
 // "every year") — the user just wants to see when it's next due, not that
 // it repeats. Anything within a week either direction reads as relative
-// ("in 3 days" / "3 days ago") rather than a calendar date.
+// ("in 3 days" / "3 days ago") rather than a calendar date. Bucketed by
+// calendar day (ignoring time-of-day), unlike the scoring engine which
+// cares about the exact hour — "Today" should read as "Today" all day.
 function formatDue(due) {
-  if (!due?.date) return '—'
-  const date = new Date(due.date)
-  if (Number.isNaN(date.getTime())) return due.date
+  const date = dueCalendarDate(due)
+  if (!date || Number.isNaN(date.getTime())) return due?.date ?? '—'
 
   const diff = daysFromToday(date)
   if (diff === 0) return 'Today'
@@ -37,9 +39,8 @@ function formatDue(due) {
 }
 
 function isOverdue(due) {
-  if (!due?.date) return false
-  const date = new Date(due.date)
-  if (Number.isNaN(date.getTime())) return false
+  const date = dueCalendarDate(due)
+  if (!date || Number.isNaN(date.getTime())) return false
   return daysFromToday(date) < 0
 }
 

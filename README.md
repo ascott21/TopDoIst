@@ -20,27 +20,36 @@ just walks through it.
 
 ### Priority
 
-Todoist's P1-P4 flag, linearly mapped so P4 (no priority) is 0 and P1 is 1:
+Todoist's P1-P4 flag, weighted so each tier is worth double the one below
+it (P4=1, P3=2, P2=4, P1=8), normalized against the top so P1 still maxes
+out at 1.0:
 
 ```
-priorityScore = (todoistPriority - 1) / 3
+priorityScore = 2^(todoistPriority - 1) / 8
 ```
 
 (Todoist's API represents P1 as `4` and P4 as `1` internally, hence the
-`- 1) / 3` to land on a clean 0-1 scale.) A P1 task scores a full 1.0 here;
-a P4 task scores 0.
+`- 1` to get a 0-indexed rank first.) That gives P4=0.125, P3=0.25, P2=0.5,
+P1=1.0 — P4 no longer scores exactly zero, since "zero" isn't expressible
+in a pure doubling ratio, but it's a small share (1/8th of P1's).
 
 ### Due date urgency
 
 This is the only signal that can exceed 1, so overdue tasks can genuinely
-dominate the ranking:
+dominate the ranking. It's driven by precise **hours** until due — using
+the task's actual due time when it has one, or 23:59:59 local time on the
+due date when it doesn't — not by which whole day it falls on. That's what
+makes "due today" reliably outscore "due tomorrow," and an earlier time
+outscore a later time on the same day, at any distance out:
 
 - **Overdue**: starts at 1.0 the moment it's overdue and climbs toward 2.0
-  as more days pass — `1 + daysOverdue / 14`, capped at 2.0. So a task 14+
-  days overdue is maxed out.
-- **Due today or already past due-time**: flat 1.0.
-- **Due within the next week**: falls off linearly from ~0.9 (due
-  tomorrow) down to ~0.3 (due in 7 days).
+  as more hours pass — `1 + hoursOverdue / (14 × 24)`, capped at 2.0. So a
+  task 14+ days overdue is maxed out.
+- **Due within the next week**: one continuous line from 1.0 (due right
+  now) down to 0.3 (due in exactly 7 days) — so, for example, something
+  due in 6 hours scores higher than something due in 30 hours, which
+  scores higher than something due in 50 hours, and so on continuously
+  rather than in whole-day steps.
 - **Due more than a week out**: keeps decaying slowly, floored at 0.1 so it
   never hits zero.
 - **No due date at all**: a flat 0.15 — low, so it won't compete with
