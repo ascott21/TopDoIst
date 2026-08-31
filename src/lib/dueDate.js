@@ -38,3 +38,17 @@ export function dueInstant(due) {
   // ISO 8601 parsing already does the right thing with that as-is.
   return new Date(raw)
 }
+
+// True when the task's due date carries an actual time, as opposed to
+// just a date. Todoist's `due.date` is a bare "YYYY-MM-DD" (10 chars) for
+// an all-day due date, or a full ISO datetime when a specific time is set.
+export function dueHasTime(due) {
+  return !!due?.date && due.date.length > 10
+}
+
+// The due time, but only when Todoist recorded a real one — for display,
+// where showing dueInstant's 23:59:59 default would misleadingly imply a
+// time the user never set. Returns null for date-only due dates.
+export function dueTime(due) {
+  return dueHasTime(due) ? new Date(due.date) : null
+}

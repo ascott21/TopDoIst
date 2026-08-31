@@ -120,6 +120,13 @@ The gear icon opens a settings panel with:
 Each task's project (and section, if it's in one) shows in small type
 under its title.
 
+The Due column reads relative to today ("Today," "Tomorrow," "in 3 days,"
+"3 days ago") within a week either direction, and a calendar date beyond
+that — see [How scoring works](#how-scoring-works) for the exact
+breakpoints. When a task has an actual time set (not just a date), it's
+appended, e.g. "Today at 3:00 PM" — never fabricated for a task that's only
+due on a date.
+
 ## Setup
 
 ```bash

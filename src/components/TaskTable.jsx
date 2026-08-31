@@ -3,10 +3,11 @@ import PriorityDot from './PriorityDot'
 import CompleteCheckbox from './CompleteCheckbox'
 import { taskUrl, formatProjectMeta } from '../lib/taskDisplay'
 import { useCoarsePointer } from '../lib/useCoarsePointer'
-import { dueCalendarDate } from '../lib/dueDate'
+import { dueCalendarDate, dueHasTime, dueTime } from '../lib/dueDate'
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24
 const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' })
+const TIME_FORMATTER = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' })
 
 function startOfDay(date) {
   const d = new Date(date)
@@ -25,17 +26,28 @@ function daysFromToday(date) {
 // ("in 3 days" / "3 days ago") rather than a calendar date. Bucketed by
 // calendar day (ignoring time-of-day), unlike the scoring engine which
 // cares about the exact hour — "Today" should read as "Today" all day.
+// When the task has an actual due time set, it's appended (e.g. "Today at
+// 3:00 PM") — never fabricated for a date-only due date.
 function formatDue(due) {
   const date = dueCalendarDate(due)
   if (!date || Number.isNaN(date.getTime())) return due?.date ?? '—'
 
   const diff = daysFromToday(date)
-  if (diff === 0) return 'Today'
-  if (diff === 1) return 'Tomorrow'
-  if (diff === -1) return 'Yesterday'
-  if (diff > 1 && diff <= 7) return `in ${diff} days`
-  if (diff < -1 && diff >= -7) return `${-diff} days ago`
-  return DATE_FORMATTER.format(date)
+  let label
+  if (diff === 0) label = 'Today'
+  else if (diff === 1) label = 'Tomorrow'
+  else if (diff === -1) label = 'Yesterday'
+  else if (diff > 1 && diff <= 7) label = `in ${diff} days`
+  else if (diff < -1 && diff >= -7) label = `${-diff} days ago`
+  else label = DATE_FORMATTER.format(date)
+
+  if (dueHasTime(due)) {
+    const time = dueTime(due)
+    if (time && !Number.isNaN(time.getTime())) {
+      return `${label} at ${TIME_FORMATTER.format(time)}`
+    }
+  }
+  return label
 }
 
 function isOverdue(due) {
