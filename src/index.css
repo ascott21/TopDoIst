@@ -267,6 +267,13 @@ select {
   /* Let dnd-kit's TouchSensor own touch gestures on this control instead of
      the browser's default scroll/zoom handling. */
   touch-action: none;
+  /* Same reasoning as .row-draggable below: a held press on this handle
+     shouldn't let the browser start selecting the row's text underneath
+     it. Set unconditionally (not just when the whole row is draggable),
+     since this is the only drag target in touch mode. */
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
 }
 
 .complete-checkbox:active {
@@ -287,6 +294,20 @@ select {
 
 .is-dragging {
   opacity: 0.4;
+}
+
+/* Applied to every ranked-table row and Up Next item unconditionally —
+   not just when the whole row is the drag target (.row-draggable) — so a
+   held press anywhere in the row, including on the checkbox handle in
+   touch mode, can't be hijacked into the browser's native "click-drag to
+   select text" gesture. Activation is delay-based (a brief hold before a
+   drag starts, see App.jsx's sensors), which looks exactly like the start
+   of a text selection, so this matters everywhere a drag can begin. */
+.task-table tbody tr,
+.up-next-item {
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
 }
 
 .row-draggable {
