@@ -6,12 +6,13 @@ import {
   closeTask,
   fetchActiveTasks,
   fetchCurrentUser,
+  fetchLabels,
   fetchProjects,
   fetchSections,
   getStoredToken,
   storeToken,
 } from './api/todoist'
-import { DEFAULT_WEIGHTS, rankTasks } from './lib/scoring'
+import { DEFAULT_WEIGHTS, DEFAULT_LABEL_BONUSES, rankTasks } from './lib/scoring'
 import { DEFAULT_ASSIGNMENT_MODE, passesAssignmentFilter } from './lib/assignment'
 import TokenGate from './components/TokenGate'
 import SettingsPanel from './components/SettingsPanel'
@@ -21,6 +22,7 @@ import UpNext, { EMPTY_DROPPABLE_ID } from './components/UpNext'
 const UP_NEXT_KEY = 'topdoist:upnext'
 const ASSIGNMENT_MODE_KEY = 'topdoist:assignmentMode'
 const PROJECT_FILTER_KEY = 'topdoist:selectedProjectIds'
+const LABEL_BONUSES_KEY = 'topdoist:labelBonuses'
 
 function loadUpNextIds() {
   try {
@@ -58,13 +60,24 @@ function loadSelectedProjectIds() {
   }
 }
 
+function loadLabelBonuses() {
+  try {
+    const raw = localStorage.getItem(LABEL_BONUSES_KEY)
+    return raw == null ? DEFAULT_LABEL_BONUSES : JSON.parse(raw)
+  } catch {
+    return DEFAULT_LABEL_BONUSES
+  }
+}
+
 export default function App() {
   const [token, setToken] = useState(() => getStoredToken())
   const [tasks, setTasks] = useState([])
   const [projects, setProjects] = useState([])
   const [sections, setSections] = useState([])
+  const [labels, setLabels] = useState([])
   const [currentUserId, setCurrentUserId] = useState(null)
   const [weights, setWeights] = useState(DEFAULT_WEIGHTS)
+  const [labelBonuses, setLabelBonuses] = useState(loadLabelBonuses)
   const [selectedProjectIds, setSelectedProjectIds] = useState(loadSelectedProjectIds)
   const [assignmentMode, setAssignmentMode] = useState(loadAssignmentMode)
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -100,20 +113,29 @@ export default function App() {
       // ignore storage failures
     }
   }, [selectedProjectIds])
+  useEffect(() => {
+    try {
+      localStorage.setItem(LABEL_BONUSES_KEY, JSON.stringify(labelBonuses))
+    } catch {
+      // ignore storage failures
+    }
+  }, [labelBonuses])
 
   async function loadFromTodoist(activeToken) {
     setLoading(true)
     setError('')
     try {
-      const [taskData, projectData, sectionData, user] = await Promise.all([
+      const [taskData, projectData, sectionData, labelData, user] = await Promise.all([
         fetchActiveTasks(activeToken),
         fetchProjects(activeToken),
         fetchSections(activeToken),
+        fetchLabels(activeToken),
         fetchCurrentUser(activeToken),
       ])
       setTasks(taskData)
       setProjects(projectData)
       setSections(sectionData)
+      setLabels(labelData)
       setCurrentUserId(user?.id ?? null)
       storeToken(activeToken)
       setToken(activeToken)
@@ -152,7 +174,10 @@ export default function App() {
     })
   }, [tasks, selectedProjectIds, upNextIds, assignmentMode, projectsById, currentUserId])
 
-  const ranked = useMemo(() => rankTasks(filteredTasks, { weights }), [filteredTasks, weights])
+  const ranked = useMemo(
+    () => rankTasks(filteredTasks, { weights, labelBonuses }),
+    [filteredTasks, weights, labelBonuses],
+  )
 
   function handleUpNextInsert(taskId, targetIndex) {
     setUpNextIds((prev) => {
@@ -234,12 +259,29 @@ export default function App() {
     })
   }
 
+  function handleSetLabelBonus(label, points) {
+    setLabelBonuses((prev) => ({ ...prev, [label]: points }))
+  }
+
+  function handleRemoveLabelBonus(label) {
+    setLabelBonuses((prev) => {
+      const next = { ...prev }
+      delete next[label]
+      return next
+    })
+  }
+
+  function handleResetLabelBonuses() {
+    setLabelBonuses(DEFAULT_LABEL_BONUSES)
+  }
+
   function handleSignOut() {
     clearStoredToken()
     setToken('')
     setTasks([])
     setProjects([])
     setSections([])
+    setLabels([])
     setCurrentUserId(null)
     setUpNextIds([])
   }
@@ -304,6 +346,11 @@ export default function App() {
         onToggleAllProjects={handleToggleAllProjects}
         assignmentMode={assignmentMode}
         onAssignmentModeChange={setAssignmentMode}
+        labelBonuses={labelBonuses}
+        availableLabels={labels.map((l) => l.name)}
+        onSetLabelBonus={handleSetLabelBonus}
+        onRemoveLabelBonus={handleRemoveLabelBonus}
+        onResetLabelBonuses={handleResetLabelBonuses}
       />
     </div>
   )

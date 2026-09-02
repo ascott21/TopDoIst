@@ -59,6 +59,8 @@ button:disabled {
 }
 
 input[type='password'],
+input[type='text'],
+input[type='number'],
 select {
   font: inherit;
   padding: 0.5rem;
@@ -248,6 +250,61 @@ select {
   display: block;
   font-size: 0.75rem;
   color: var(--text-muted);
+}
+
+/* Label bonuses */
+.settings-subheader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.settings-subheader h2 {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.label-bonus-empty {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin: 0 0 0.75rem;
+}
+
+.label-bonus-list {
+  list-style: none;
+  margin: 0 0 0.75rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.label-bonus-row,
+.label-bonus-add {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.label-bonus-name {
+  flex: 1;
+  font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.label-bonus-add-name {
+  flex: 1;
+  min-width: 0;
+}
+
+.label-bonus-points {
+  width: 5rem;
 }
 
 /* Complete checkbox — also the drag handle (see CompleteCheckbox.jsx) */

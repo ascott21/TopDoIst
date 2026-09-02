@@ -73,8 +73,8 @@ one contributes its full share.
 Unlike the three signals above, label bonuses are a flat addition to the
 final score rather than a normalized/weighted component — they don't scale
 with the weight sliders. Two are pre-configured: `urgent` adds 15 points,
-`quick-win` adds 8. Add your own by editing `DEFAULT_LABEL_BONUSES` in
-`src/lib/scoring.js`.
+`quick-win` adds 8. Fully editable from Settings (see below) — add your
+own, change the points on these two, or remove them entirely.
 
 ### Putting it together
 
@@ -116,6 +116,12 @@ The gear icon opens a settings panel with:
 - **Weights** — sliders for the three scoring signals described above.
   Changes re-rank instantly using the tasks already loaded (no need to
   refetch).
+- **Label bonuses** — add, edit, or remove which labels affect a task's
+  score and by how much. Type a label name (your own Todoist labels are
+  offered as suggestions) and a point value, then Add; existing ones are
+  editable in place, or removable. Points can be negative, to push tasks
+  with that label down instead of up. "Reset to defaults" brings back just
+  `urgent`/`quick-win`.
 
 Each task's project (and section, if it's in one) shows in small type
 under its title.

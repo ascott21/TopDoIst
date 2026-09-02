@@ -75,6 +75,10 @@ export function fetchSections(token) {
   return fetchAllPages(token, '/sections')
 }
 
+export function fetchLabels(token) {
+  return fetchAllPages(token, '/labels')
+}
+
 // Marks a task complete (Todoist's term is "close"). A recurring task just
 // advances to its next occurrence rather than disappearing — either way,
 // the closed instance stops showing up here.

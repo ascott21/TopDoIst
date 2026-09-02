@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import WeightControls from './WeightControls'
 import ProjectFilter from './ProjectFilter'
+import LabelBonusSettings from './LabelBonusSettings'
 import { ASSIGNMENT_MODE_OPTIONS } from '../lib/assignment'
 
 export default function SettingsPanel({
@@ -15,6 +16,11 @@ export default function SettingsPanel({
   onToggleAllProjects,
   assignmentMode,
   onAssignmentModeChange,
+  labelBonuses,
+  availableLabels,
+  onSetLabelBonus,
+  onRemoveLabelBonus,
+  onResetLabelBonuses,
 }) {
   // Close on Escape, for anyone who doesn't want to reach for the mouse.
   useEffect(() => {
@@ -66,6 +72,16 @@ export default function SettingsPanel({
 
         <section className="settings-section">
           <WeightControls weights={weights} onChange={onWeightsChange} onReset={onResetWeights} />
+        </section>
+
+        <section className="settings-section">
+          <LabelBonusSettings
+            labelBonuses={labelBonuses}
+            availableLabels={availableLabels}
+            onSetBonus={onSetLabelBonus}
+            onRemoveBonus={onRemoveLabelBonus}
+            onReset={onResetLabelBonuses}
+          />
         </section>
       </aside>
     </div>
