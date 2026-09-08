@@ -117,6 +117,30 @@ Todoist and removes it from the list; a press-and-hold-then-move picks it
 up to drag. The brief hold before a drag starts is what lets a tap still
 reach the checkbox instead of always starting a drag.
 
+## Live updates
+
+The app quietly re-fetches from Todoist every 15 seconds, so a task added
+or changed elsewhere — the Todoist app on your phone, say — shows up here
+on its own, no manual Refresh needed. A few things keep this cheap and
+out of your way:
+
+- It's paused whenever the tab isn't visible, and catches up immediately
+  the moment you switch back rather than waiting out the rest of the
+  interval.
+- It's paused while a drag, a completion, or an Up Next label write is in
+  progress, so a poll landing mid-action can't step on it.
+- A failed background poll fails quietly rather than flashing an error —
+  the manual Refresh button (and its own error handling) is still there
+  if something's actually wrong.
+
+15 seconds was chosen with real margin against Todoist's rate limits in
+mind (sources put the limit somewhere around several hundred to a
+thousand requests per 15 minutes per token — at this interval a full
+refresh's ~5 requests works out to roughly 225–300 requests per 15
+minutes), including room for having the app open in more than one tab or
+device at once, which multiplies the request rate since each polls
+independently.
+
 ## Settings
 
 The gear icon opens a settings panel with:

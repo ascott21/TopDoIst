@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { DndContext, DragOverlay, PointerSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core'
 import { arrayMove } from '@dnd-kit/sortable'
 import {
@@ -29,6 +29,7 @@ const UP_NEXT_ORDER_KEY = 'topdoist:upnext'
 const ASSIGNMENT_MODE_KEY = 'topdoist:assignmentMode'
 const PROJECT_FILTER_KEY = 'topdoist:selectedProjectIds'
 const LABEL_BONUSES_KEY = 'topdoist:labelBonuses'
+const POLL_INTERVAL_MS = 15000
 
 function loadUpNextOrder() {
   try {
@@ -123,6 +124,21 @@ export default function App() {
   // actually removed once Todoist confirms the close.
   const [completingIds, setCompletingIds] = useState(() => new Set())
 
+  // Mirrors of state the background poll needs to read without resetting
+  // its own effect every time a drag or a write starts/stops (see the
+  // polling effect below). pendingWritesRef additionally covers the two
+  // label writes (add/remove from Up Next), which have no state of their
+  // own the way completingIds already does for completing a task.
+  const activeDragIdRef = useRef(activeDragId)
+  useEffect(() => {
+    activeDragIdRef.current = activeDragId
+  }, [activeDragId])
+  const completingIdsRef = useRef(completingIds)
+  useEffect(() => {
+    completingIdsRef.current = completingIds
+  }, [completingIds])
+  const pendingWritesRef = useRef(0)
+
   // A single PointerSensor handles mouse, touch, and pen uniformly (Pointer
   // Events unify all three). Using PointerSensor and TouchSensor together
   // is a known dnd-kit footgun — both fire for the same touch interaction
@@ -155,9 +171,15 @@ export default function App() {
     }
   }, [labelBonuses])
 
-  async function loadFromTodoist(activeToken) {
-    setLoading(true)
-    setError('')
+  // `silent` is what a background poll uses: no "Refreshing…" flicker on
+  // the button, and a failure (e.g. one dropped request) is swallowed
+  // rather than flashed as an error banner every 15 seconds — the manual
+  // Refresh button is still there if something's actually wrong.
+  async function loadFromTodoist(activeToken, { silent = false } = {}) {
+    if (!silent) {
+      setLoading(true)
+      setError('')
+    }
     try {
       const [taskData, projectData, sectionData, labelData, user] = await Promise.all([
         fetchActiveTasks(activeToken),
@@ -175,9 +197,9 @@ export default function App() {
       storeToken(activeToken)
       setToken(activeToken)
     } catch (err) {
-      setError(err.message || 'Something went wrong loading your tasks.')
+      if (!silent) setError(err.message || 'Something went wrong loading your tasks.')
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }
 
@@ -185,6 +207,33 @@ export default function App() {
     if (token) loadFromTodoist(token)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Live updates: quietly re-fetch every 15s so a task added or changed
+  // from another device (the Todoist app on your phone, say) shows up
+  // here without needing to click Refresh. Paused whenever it could step
+  // on something in progress — a drag, a completion, or an Up Next label
+  // write — or while the tab isn't visible, and it catches up immediately
+  // the moment the tab is switched back to instead of waiting out the
+  // rest of the interval.
+  useEffect(() => {
+    if (!token) return
+
+    function poll() {
+      if (document.visibilityState === 'hidden') return
+      if (activeDragIdRef.current !== null) return
+      if (completingIdsRef.current.size > 0) return
+      if (pendingWritesRef.current > 0) return
+      loadFromTodoist(token, { silent: true })
+    }
+
+    const intervalId = setInterval(poll, POLL_INTERVAL_MS)
+    document.addEventListener('visibilitychange', poll)
+    return () => {
+      clearInterval(intervalId)
+      document.removeEventListener('visibilitychange', poll)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token])
 
   const projectsById = useMemo(() => Object.fromEntries(projects.map((p) => [p.id, p])), [projects])
   const sectionsById = useMemo(() => Object.fromEntries(sections.map((s) => [s.id, s])), [sections])
@@ -247,11 +296,14 @@ export default function App() {
     setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, labels: newLabels } : t)))
     reorderUpNextLocally(taskId, targetIndex)
 
+    pendingWritesRef.current++
     try {
       await updateTaskLabels(token, taskId, newLabels)
     } catch (err) {
       setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, labels: previousLabels } : t)))
       setError(err.message || "Couldn't add that task to Up Next. Try again.")
+    } finally {
+      pendingWritesRef.current--
     }
   }
 
@@ -266,11 +318,14 @@ export default function App() {
     setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, labels: newLabels } : t)))
     setUpNextOrder((prev) => prev.filter((id) => id !== taskId))
 
+    pendingWritesRef.current++
     try {
       await updateTaskLabels(token, taskId, newLabels)
     } catch (err) {
       setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, labels: previousLabels } : t)))
       setError(err.message || "Couldn't remove that task from Up Next. Try again.")
+    } finally {
+      pendingWritesRef.current--
     }
   }
 
