@@ -5,9 +5,10 @@ what to work on next.
 
 It's read-mostly by design: it fetches your active tasks, computes a score
 for each one, and shows them ranked. It never writes priorities, due dates,
-or anything else back to Todoist — the one exception is checking a task off
-directly from here (see below), since that's the whole point of getting
-through the list.
+or content back to Todoist. Two things it does write: checking a task off
+directly from here (see below), and applying/removing the "Up Next" label
+when you drag a task in or out of that section (see [Up Next](#up-next)) —
+both because that's the point of using the app for anything beyond looking.
 
 ## How scoring works
 
@@ -91,8 +92,21 @@ per-component numbers, so you can see exactly why it landed where it did.
 ## Up Next
 
 Drag a task into the **Up Next** section to pull it out of the ranking and
-line it up manually instead. Order there is up to you — drag to reorder
-within the list — and it persists across reloads.
+line it up manually instead.
+
+Dragging a task in (or hitting Remove) actually applies (or removes) an
+**"Up Next" label** on the task in Todoist — this is the one place besides
+marking a task complete where the app writes back. That means which tasks
+are in Up Next is the same everywhere you sign in, not just this browser:
+label a task from your phone's Todoist app directly and it'll show up
+here too.
+
+Manual **order** within Up Next is different — Todoist has no concept of a
+custom order within a label, so drag-to-reorder stays local to this
+browser (persisted, but not synced) and never touches the network. A task
+that's in Up Next because of its label but has no saved position here yet
+(e.g. it was labeled on another device) gets appended in score order until
+you drag it somewhere specific.
 
 On a mouse or trackpad, click-drag anywhere on the row. On touch, the drag
 zone is deliberately confined to the small leading circle instead of the

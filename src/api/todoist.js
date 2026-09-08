@@ -92,6 +92,23 @@ export async function closeTask(token, taskId) {
   }
 }
 
+// Replaces a task's full label list — the update endpoint takes the whole
+// array, not an add/remove delta, so callers must include every label the
+// task should keep, not just the one changing.
+export async function updateTaskLabels(token, taskId, labels) {
+  const res = await fetch(`${BASE_URL}/tasks/${taskId}`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ labels }),
+  })
+  if (!res.ok) {
+    throw new Error(`Todoist API error (${res.status})`)
+  }
+}
+
 // There's no plain REST-style "/user" endpoint in the unified API — current
 // user info comes back from the sync endpoint when you ask for the "user"
 // resource. We only need the id, to tell "assigned to me" apart from
