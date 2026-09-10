@@ -195,3 +195,18 @@ never passes through any server of ours.
 This is a static Vite app — deploy the `dist/` output anywhere static
 (Vercel config is included). Since the Todoist token lives client-side,
 there's no backend or environment variable to configure.
+
+## Branding
+
+The app icon lives at `public/icon.svg` — Vite copies anything in
+`public/` to the build output root as-is, so it's referenced from both
+`index.html` (the favicon) and the header logo in `src/App.jsx` by the
+same root-relative path, `/icon.svg`. It's a plain SVG reconstruction of
+a design made in Claude Design (three stacked bars, widest-to-narrowest,
+in a rounded badge) — vector rather than a fixed-resolution export, so it
+stays crisp at both favicon and logo size. There's also a dark-background
+variant of the same design that isn't wired in anywhere currently; swap
+`public/icon.svg` for it (or add it alongside and reference it from a
+`prefers-color-scheme` media query in `index.html`) if the light version
+ever stops being the right call for the tab-bar/OS chrome it was chosen
+for.

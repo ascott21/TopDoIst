@@ -481,7 +481,10 @@ export default function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>TopDoist</h1>
+        <div className="app-title">
+          <img src="/icon.svg" alt="" width="28" height="28" className="app-logo" />
+          <h1>TopDoist</h1>
+        </div>
         <div className="app-header-actions">
           <button type="button" onClick={() => loadFromTodoist(token)} disabled={loading}>
             {loading ? 'Refreshing…' : 'Refresh'}

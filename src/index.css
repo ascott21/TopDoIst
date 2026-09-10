@@ -106,8 +106,18 @@ select {
   margin-bottom: 1.5rem;
 }
 
+.app-title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
 .app-header h1 {
   margin: 0;
+}
+
+.app-logo {
+  flex-shrink: 0;
 }
 
 .app-header-actions {
@@ -124,6 +134,11 @@ select {
 
   .app-header h1 {
     font-size: 1.5rem;
+  }
+
+  .app-logo {
+    width: 24px;
+    height: 24px;
   }
 }
 
