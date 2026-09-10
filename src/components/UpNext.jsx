@@ -2,6 +2,7 @@ import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import CompleteCheckbox from './CompleteCheckbox'
+import TaskIndicators from './TaskIndicators'
 import { taskUrl, formatProjectMeta } from '../lib/taskDisplay'
 import { useCoarsePointer } from '../lib/useCoarsePointer'
 
@@ -11,7 +12,7 @@ import { useCoarsePointer } from '../lib/useCoarsePointer'
 // needed.
 export const EMPTY_DROPPABLE_ID = 'up-next-empty'
 
-function UpNextItem({ task, projectsById, sectionsById, isCompleting, onComplete, onRemove }) {
+function UpNextItem({ task, projectsById, sectionsById, isCompleting, onComplete, onRemove, hasComments }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id })
   const isCoarse = useCoarsePointer()
   const dragProps = { ...attributes, ...listeners }
@@ -31,7 +32,10 @@ function UpNextItem({ task, projectsById, sectionsById, isCompleting, onComplete
         <a href={taskUrl(task)} target="_blank" rel="noreferrer">
           {task.content}
         </a>
-        <span className="up-next-meta">{formatProjectMeta(task, projectsById, sectionsById)}</span>
+        <span className="up-next-meta">
+          {formatProjectMeta(task, projectsById, sectionsById)}
+          <TaskIndicators hasDescription={!!task.description?.trim()} hasComments={hasComments} />
+        </span>
       </span>
       <button type="button" className="link-button" onClick={() => onRemove(task.id)}>
         Remove
@@ -40,7 +44,7 @@ function UpNextItem({ task, projectsById, sectionsById, isCompleting, onComplete
   )
 }
 
-export default function UpNext({ tasks, projectsById, sectionsById, completingIds, onComplete, onRemove }) {
+export default function UpNext({ tasks, projectsById, sectionsById, completingIds, onComplete, onRemove, taskIdsWithComments }) {
   const { setNodeRef, isOver } = useDroppable({ id: EMPTY_DROPPABLE_ID })
 
   if (tasks.length === 0) {
@@ -68,6 +72,7 @@ export default function UpNext({ tasks, projectsById, sectionsById, completingId
               isCompleting={completingIds.has(task.id)}
               onComplete={onComplete}
               onRemove={onRemove}
+              hasComments={taskIdsWithComments.has(task.id)}
             />
           ))}
         </ol>

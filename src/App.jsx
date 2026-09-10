@@ -5,6 +5,7 @@ import {
   clearStoredToken,
   closeTask,
   fetchActiveTasks,
+  fetchCommentsForProject,
   fetchCurrentUser,
   fetchLabels,
   fetchProjects,
@@ -75,6 +76,24 @@ async function migrateLegacyUpNext(activeToken, taskData) {
   return taskData.map((t) => (migratedIds.has(t.id) ? { ...t, labels: withLabelAdded(t.labels, UP_NEXT_LABEL) } : t))
 }
 
+// A task's own object never says whether it has comments — the only way
+// to find out is to fetch each project's comments and see which tasks
+// they belong to (a comment can also be posted on the project itself,
+// with no task_id, hence the filter). That's one extra request per
+// project, so this only runs on a full (non-silent) load, never on the
+// 15s background poll — see the note where it's called.
+async function fetchTaskIdsWithComments(activeToken, projectList) {
+  const results = await Promise.allSettled(projectList.map((p) => fetchCommentsForProject(activeToken, p.id)))
+  const ids = new Set()
+  for (const result of results) {
+    if (result.status !== 'fulfilled') continue
+    for (const comment of result.value) {
+      if (comment.task_id) ids.add(comment.task_id)
+    }
+  }
+  return ids
+}
+
 function loadAssignmentMode() {
   try {
     return localStorage.getItem(ASSIGNMENT_MODE_KEY) ?? DEFAULT_ASSIGNMENT_MODE
@@ -110,6 +129,9 @@ export default function App() {
   const [projects, setProjects] = useState([])
   const [sections, setSections] = useState([])
   const [labels, setLabels] = useState([])
+  // Which tasks have comments — refreshed only on a full (non-silent)
+  // load, not on every 15s poll (see fetchTaskIdsWithComments).
+  const [taskIdsWithComments, setTaskIdsWithComments] = useState(() => new Set())
   const [currentUserId, setCurrentUserId] = useState(null)
   const [weights, setWeights] = useState(DEFAULT_WEIGHTS)
   const [labelBonuses, setLabelBonuses] = useState(loadLabelBonuses)
@@ -196,6 +218,20 @@ export default function App() {
       setCurrentUserId(user?.id ?? null)
       storeToken(activeToken)
       setToken(activeToken)
+
+      // Comment presence costs one request per project, which the 15s
+      // background poll can't absorb — only refresh it on a full load, and
+      // don't block the rest of the UI on it: let the task list render
+      // immediately and the comment icons fill in a moment later.
+      if (!silent) {
+        fetchTaskIdsWithComments(activeToken, projectData)
+          .then(setTaskIdsWithComments)
+          .catch(() => {
+            // Comment presence is a supplementary indicator, not core
+            // data — a failure here shouldn't show an alarming error for
+            // something this secondary.
+          })
+      }
     } catch (err) {
       if (!silent) setError(err.message || 'Something went wrong loading your tasks.')
     } finally {
@@ -429,6 +465,7 @@ export default function App() {
     setProjects([])
     setSections([])
     setLabels([])
+    setTaskIdsWithComments(new Set())
     setCurrentUserId(null)
     // upNextOrder is left as-is, same as the other local preferences
     // (weights, assignment mode, project filter, label bonuses) — it's
@@ -468,6 +505,7 @@ export default function App() {
           completingIds={completingIds}
           onComplete={handleComplete}
           onRemove={handleRemoveFromUpNext}
+          taskIdsWithComments={taskIdsWithComments}
         />
 
         <main className="app-main">
@@ -477,6 +515,7 @@ export default function App() {
             sectionsById={sectionsById}
             completingIds={completingIds}
             onComplete={handleComplete}
+            taskIdsWithComments={taskIdsWithComments}
           />
         </main>
 

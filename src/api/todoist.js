@@ -34,9 +34,12 @@ export function clearStoredToken() {
   }
 }
 
-async function requestPage(token, path, cursor) {
+async function requestPage(token, path, cursor, params) {
   const url = new URL(`${BASE_URL}${path}`)
   if (cursor) url.searchParams.set('cursor', cursor)
+  for (const [key, value] of Object.entries(params ?? {})) {
+    url.searchParams.set(key, value)
+  }
 
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${token}` },
@@ -51,12 +54,13 @@ async function requestPage(token, path, cursor) {
 }
 
 // Every list endpoint in the unified API is cursor-paginated. Walk all pages
-// and return the combined results.
-async function fetchAllPages(token, path) {
+// and return the combined results. `params` are extra query params sent on
+// every page alongside the cursor (e.g. filtering comments to one project).
+async function fetchAllPages(token, path, params) {
   let cursor = null
   const results = []
   do {
-    const page = await requestPage(token, path, cursor)
+    const page = await requestPage(token, path, cursor, params)
     results.push(...(page.results ?? []))
     cursor = page.next_cursor ?? null
   } while (cursor)
@@ -77,6 +81,15 @@ export function fetchSections(token) {
 
 export function fetchLabels(token) {
   return fetchAllPages(token, '/labels')
+}
+
+// A task's own object never includes whether it has comments (no count,
+// no flag) — the only way to find out is to ask for a project's comments
+// and see which tasks they belong to. Comments can also be posted on the
+// project itself rather than a task, hence filtering by `task_id` at the
+// call site.
+export function fetchCommentsForProject(token, projectId) {
+  return fetchAllPages(token, '/comments', { project_id: projectId })
 }
 
 // Marks a task complete (Todoist's term is "close"). A recurring task just

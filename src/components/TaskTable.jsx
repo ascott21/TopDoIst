@@ -1,6 +1,7 @@
 import { useDraggable } from '@dnd-kit/core'
 import PriorityDot from './PriorityDot'
 import CompleteCheckbox from './CompleteCheckbox'
+import TaskIndicators from './TaskIndicators'
 import { taskUrl, formatProjectMeta } from '../lib/taskDisplay'
 import { useCoarsePointer } from '../lib/useCoarsePointer'
 import { dueCalendarDate, dueHasTime, dueTime } from '../lib/dueDate'
@@ -56,7 +57,7 @@ function isOverdue(due) {
   return daysFromToday(date) < 0
 }
 
-function TaskRow({ task, breakdown, projectsById, sectionsById, isCompleting, onComplete }) {
+function TaskRow({ task, breakdown, projectsById, sectionsById, isCompleting, onComplete, hasComments }) {
   // Deliberately not sortable — this list is algorithmically ranked, not
   // manually reorderable. Dragging one out just needs a source; where it's
   // dropped (Up Next) is what makes it sortable.
@@ -101,6 +102,7 @@ function TaskRow({ task, breakdown, projectsById, sectionsById, isCompleting, on
         <div className="task-meta">
           <PriorityDot priority={task.priority} />
           <span className="task-meta-project">{formatProjectMeta(task, projectsById, sectionsById)}</span>
+          <TaskIndicators hasDescription={!!task.description?.trim()} hasComments={hasComments} />
         </div>
       </td>
       <td className={isOverdue(task.due) ? 'due-overdue' : undefined}>{formatDue(task.due)}</td>
@@ -108,7 +110,7 @@ function TaskRow({ task, breakdown, projectsById, sectionsById, isCompleting, on
   )
 }
 
-export default function TaskTable({ ranked, projectsById, sectionsById, completingIds, onComplete }) {
+export default function TaskTable({ ranked, projectsById, sectionsById, completingIds, onComplete, taskIdsWithComments }) {
   if (ranked.length === 0) {
     return <p className="empty">No tasks left in the list — everything's either done or in Up Next.</p>
   }
@@ -132,6 +134,7 @@ export default function TaskTable({ ranked, projectsById, sectionsById, completi
             sectionsById={sectionsById}
             isCompleting={completingIds.has(task.id)}
             onComplete={onComplete}
+            hasComments={taskIdsWithComments.has(task.id)}
           />
         ))}
       </tbody>

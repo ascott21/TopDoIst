@@ -162,7 +162,14 @@ The gear icon opens a settings panel with:
   `urgent`/`quick-win`.
 
 Each task's project (and section, if it's in one) shows in small type
-under its title.
+under its title. A small document icon there means the task has a
+description; a speech-bubble icon means it has comments — no counts, just
+a nudge that there's more worth a look before you start it. The
+description icon is always current (it comes free with every task); the
+comments icon is refreshed only on a full load or manual Refresh, not on
+every 15-second background poll — see [Live updates](#live-updates) for
+why (Todoist's task data doesn't include a comment count, so checking
+means one extra request per project, too much to do every 15 seconds).
 
 The Due column reads relative to today ("Today," "Tomorrow," "in 3 days,"
 "3 days ago") within a week either direction, and a calendar date beyond

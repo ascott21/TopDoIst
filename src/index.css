@@ -448,6 +448,9 @@ select {
 }
 
 .up-next-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
   font-size: 0.75rem;
   color: var(--text-muted);
 }
@@ -523,6 +526,19 @@ select {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.task-indicators {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.task-indicator-icon {
+  display: block;
+  flex-shrink: 0;
 }
 
 .labels {
