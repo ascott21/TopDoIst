@@ -14,9 +14,11 @@ both because that's the point of using the app for anything beyond looking.
 
 Each task's score is a weighted combination of three signals, each first
 normalized to its own small range and then scaled by its weight × 20. With
-the default weights (priority 1, due 2, staleness 0.5), each signal can
-contribute up to roughly 20, 40, and 10 points respectively, plus whatever
-label bonuses apply. The exact formula lives in `src/lib/scoring.js`; this
+the default weights (priority 1, due 2, staleness 0), each signal can
+contribute up to roughly 20 and 40 points respectively, plus whatever
+label bonuses apply. Staleness defaults to off (0) but is there if you
+want it — turn its slider up in Settings to start factoring in how long a
+task has sat idle. The exact formula lives in `src/lib/scoring.js`; this
 just walks through it.
 
 ### Priority
@@ -73,9 +75,9 @@ one contributes its full share.
 
 Unlike the three signals above, label bonuses are a flat addition to the
 final score rather than a normalized/weighted component — they don't scale
-with the weight sliders. Two are pre-configured: `urgent` adds 15 points,
-`quick-win` adds 8. Fully editable from Settings (see below) — add your
-own, change the points on these two, or remove them entirely.
+with the weight sliders. One is pre-configured: `long` adds 5 points.
+Fully editable from Settings (see below) — add your own, change the
+points on this one, or remove it entirely.
 
 ### Putting it together
 
@@ -159,7 +161,7 @@ The gear icon opens a settings panel with:
   offered as suggestions) and a point value, then Add; existing ones are
   editable in place, or removable. Points can be negative, to push tasks
   with that label down instead of up. "Reset to defaults" brings back just
-  `urgent`/`quick-win`.
+  `long`.
 
 Each task's project (and section, if it's in one) shows in small type
 under its title. A small document icon there means the task has a

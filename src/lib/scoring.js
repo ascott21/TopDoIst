@@ -21,13 +21,12 @@ import { dueInstant } from './dueDate'
 export const DEFAULT_WEIGHTS = {
   priority: 1,
   due: 2,
-  staleness: 0.5,
+  staleness: 0,
 }
 
 // label (lowercased) -> flat bonus added to the final 0-100 score
 export const DEFAULT_LABEL_BONUSES = {
-  urgent: 15,
-  'quick-win': 8,
+  long: 5,
 }
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24
