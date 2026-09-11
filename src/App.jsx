@@ -280,7 +280,16 @@ export default function App() {
   // — tasks with a saved position show in that order; anything labeled
   // from elsewhere that we have no saved position for is appended, most
   // urgent first, until it's dragged into a specific spot on this device.
-  const labeledUpNextTasks = useMemo(() => tasks.filter(hasUpNextLabel), [tasks])
+  // The project filter applies here too, same as the ranked table below —
+  // a task in an unchecked project stays out of view entirely rather than
+  // still showing up just because it's labeled Up Next.
+  const labeledUpNextTasks = useMemo(
+    () =>
+      tasks.filter(
+        (t) => hasUpNextLabel(t) && (selectedProjectIds === null || selectedProjectIds.includes(t.project_id)),
+      ),
+    [tasks, selectedProjectIds],
+  )
 
   const upNextTasks = useMemo(() => {
     const labeledIds = new Set(labeledUpNextTasks.map((t) => t.id))

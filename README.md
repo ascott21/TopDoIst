@@ -152,7 +152,9 @@ The gear icon opens a settings panel with:
   your own, or only tasks assigned to you. This has no effect on tasks in
   your own (non-shared) projects — those always show.
 - **Project** — a checklist to show only the projects you check; there's
-  an "All projects" master checkbox too.
+  an "All projects" master checkbox too. This applies to Up Next as well
+  as the ranked table — a task in an unchecked project stays hidden even
+  if it's labeled Up Next.
 - **Weights** — sliders for the three scoring signals described above.
   Changes re-rank instantly using the tasks already loaded (no need to
   refetch).
