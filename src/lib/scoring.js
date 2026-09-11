@@ -55,8 +55,8 @@ function priorityScore(task) {
 // they've been overdue (capped at 2, reached after ~14 days); not-yet-due
 // tasks decay from 1.0 (due right now) down to 0.3 (due in exactly 7 days)
 // along one continuous line, then keep decaying slowly beyond that, floored
-// at 0.1. Tasks with no due date get a low flat baseline so staleness is
-// what surfaces them instead.
+// at 0.1. Tasks with no due date get a true zero — no due date means no due
+// date urgency at all, and staleness is what surfaces them instead.
 //
 // Driven by precise hours until due (not whole-day buckets), using
 // Todoist's actual due time when it has one, or end-of-day when it
@@ -65,7 +65,7 @@ function priorityScore(task) {
 // distance out.
 function dueScore(task, now) {
   const due = dueInstant(task.due)
-  if (!due) return 0.15
+  if (!due) return 0
 
   const hoursUntilDue = (due.getTime() - now.getTime()) / MS_PER_HOUR
 

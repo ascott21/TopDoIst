@@ -53,8 +53,8 @@ outscore a later time on the same day, at any distance out:
   rather than in whole-day steps.
 - **Due more than a week out**: keeps decaying slowly, floored at 0.1 so it
   never hits zero.
-- **No due date at all**: a flat 0.15 — low, so it won't compete with
-  anything that has a real deadline, but not zero either.
+- **No due date at all**: a true zero — no due date means no due-date
+  urgency, full stop. Staleness (below) is what surfaces these instead.
 
 ### Staleness
 
