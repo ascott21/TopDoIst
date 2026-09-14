@@ -2,6 +2,7 @@ import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import CompleteCheckbox from './CompleteCheckbox'
+import PriorityDot from './PriorityDot'
 import TaskIndicators from './TaskIndicators'
 import { taskUrl, formatProjectMeta } from '../lib/taskDisplay'
 import { useCoarsePointer } from '../lib/useCoarsePointer'
@@ -33,6 +34,7 @@ function UpNextItem({ task, projectsById, sectionsById, isCompleting, onComplete
           {task.content}
         </a>
         <span className="up-next-meta">
+          <PriorityDot priority={task.priority} />
           {formatProjectMeta(task, projectsById, sectionsById)}
           <TaskIndicators hasDescription={!!task.description?.trim()} hasComments={hasComments} />
         </span>
