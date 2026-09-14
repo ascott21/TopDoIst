@@ -96,12 +96,12 @@ per-component numbers, so you can see exactly why it landed where it did.
 Drag a task into the **Up Next** section to pull it out of the ranking and
 line it up manually instead.
 
-Dragging a task in (or hitting the × next to it) actually applies (or
-removes) an **"Up Next" label** on the task in Todoist — this is the one
-place besides marking a task complete where the app writes back. That
-means which tasks are in Up Next is the same everywhere you sign in, not
-just this browser: label a task from your phone's Todoist app directly
-and it'll show up here too.
+Dragging a task in (or hitting the ↓ next to it, to send it back down to
+the ranked list) actually applies (or removes) an **"Up Next" label** on
+the task in Todoist — this is the one place besides marking a task
+complete where the app writes back. That means which tasks are in Up Next
+is the same everywhere you sign in, not just this browser: label a task
+from your phone's Todoist app directly and it'll show up here too.
 
 Each item also shows its due date, same formatting as the ranked table
 (including overdue styling) — a task with no due date just shows nothing

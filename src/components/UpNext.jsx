@@ -53,7 +53,7 @@ function UpNextItem({ task, projectsById, sectionsById, isCompleting, onComplete
         aria-label="Remove from Up Next"
         title="Remove from Up Next"
       >
-        ×
+        ↓
       </button>
     </li>
   )
