@@ -182,6 +182,24 @@ breakpoints. When a task has an actual time set (not just a date), it's
 appended, e.g. "Today at 3:00 PM" — never fabricated for a task that's only
 due on a date.
 
+## Search
+
+The search box above the ranked table filters it as you type, matching a
+task's title, description, or labels (case-insensitive, substring match —
+no need for exact wording). It only affects the ranked list; Up Next is
+short and manually curated, so there's nothing there worth searching.
+Clearing the box (or the × next to it) brings everything back.
+
+## Focus mode
+
+The 🎯 button in the header hides the ranked table entirely and shows just
+Up Next — for when you want to work through what you've already queued up
+without the rest of the list competing for attention. Click it again (now
+labeled to exit) to bring the ranked table back, which is also how you add
+more tasks to Up Next, since dragging one in requires seeing it in the
+table first. The setting persists across reloads, same as your other
+preferences.
+
 ## Setup
 
 ```bash

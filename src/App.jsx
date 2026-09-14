@@ -30,6 +30,7 @@ const UP_NEXT_ORDER_KEY = 'topdoist:upnext'
 const ASSIGNMENT_MODE_KEY = 'topdoist:assignmentMode'
 const PROJECT_FILTER_KEY = 'topdoist:selectedProjectIds'
 const LABEL_BONUSES_KEY = 'topdoist:labelBonuses'
+const FOCUS_MODE_KEY = 'topdoist:focusMode'
 const POLL_INTERVAL_MS = 15000
 
 function loadUpNextOrder() {
@@ -123,6 +124,26 @@ function loadLabelBonuses() {
   }
 }
 
+function loadFocusMode() {
+  try {
+    return localStorage.getItem(FOCUS_MODE_KEY) === 'true'
+  } catch {
+    return false
+  }
+}
+
+// Matches a task's title, description, and labels — whichever the query
+// shows up in, case-insensitively. Only touches the ranked list; Up Next
+// is short and manually curated, so there's nothing there worth searching.
+function taskMatchesSearch(task, query) {
+  if (!query) return true
+  const q = query.toLowerCase()
+  if (task.content.toLowerCase().includes(q)) return true
+  if (task.description && task.description.toLowerCase().includes(q)) return true
+  if (task.labels?.some((label) => label.toLowerCase().includes(q))) return true
+  return false
+}
+
 export default function App() {
   const [token, setToken] = useState(() => getStoredToken())
   const [tasks, setTasks] = useState([])
@@ -137,6 +158,8 @@ export default function App() {
   const [labelBonuses, setLabelBonuses] = useState(loadLabelBonuses)
   const [selectedProjectIds, setSelectedProjectIds] = useState(loadSelectedProjectIds)
   const [assignmentMode, setAssignmentMode] = useState(loadAssignmentMode)
+  const [focusMode, setFocusMode] = useState(loadFocusMode)
+  const [searchQuery, setSearchQuery] = useState('')
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -192,6 +215,13 @@ export default function App() {
       // ignore storage failures
     }
   }, [labelBonuses])
+  useEffect(() => {
+    try {
+      localStorage.setItem(FOCUS_MODE_KEY, String(focusMode))
+    } catch {
+      // ignore storage failures
+    }
+  }, [focusMode])
 
   // `silent` is what a background poll uses: no "Refreshing…" flicker on
   // the button, and a failure (e.g. one dropped request) is swallowed
@@ -313,9 +343,14 @@ export default function App() {
     })
   }, [tasks, selectedProjectIds, assignmentMode, projectsById, currentUserId])
 
+  const searchedTasks = useMemo(
+    () => filteredTasks.filter((t) => taskMatchesSearch(t, searchQuery)),
+    [filteredTasks, searchQuery],
+  )
+
   const ranked = useMemo(
-    () => rankTasks(filteredTasks, { weights, labelBonuses }),
-    [filteredTasks, weights, labelBonuses],
+    () => rankTasks(searchedTasks, { weights, labelBonuses }),
+    [searchedTasks, weights, labelBonuses],
   )
 
   // Purely local — where a task sits within Up Next isn't something
@@ -498,6 +533,16 @@ export default function App() {
           <button type="button" onClick={() => loadFromTodoist(token)} disabled={loading}>
             {loading ? 'Refreshing…' : 'Refresh'}
           </button>
+          <button
+            type="button"
+            className={`icon-button ${focusMode ? 'is-active' : ''}`}
+            onClick={() => setFocusMode((f) => !f)}
+            aria-pressed={focusMode}
+            aria-label={focusMode ? 'Exit focus mode' : 'Enter focus mode (show only Up Next)'}
+            title={focusMode ? 'Exit focus mode' : 'Focus mode: show only Up Next'}
+          >
+            🎯
+          </button>
           <button type="button" className="icon-button" onClick={() => setSettingsOpen(true)} aria-label="Open settings">
             ⚙
           </button>
@@ -520,16 +565,38 @@ export default function App() {
           taskIdsWithComments={taskIdsWithComments}
         />
 
-        <main className="app-main">
-          <TaskTable
-            ranked={ranked}
-            projectsById={projectsById}
-            sectionsById={sectionsById}
-            completingIds={completingIds}
-            onComplete={handleComplete}
-            taskIdsWithComments={taskIdsWithComments}
-          />
-        </main>
+        {!focusMode && (
+          <main className="app-main">
+            <div className="search-bar">
+              <input
+                type="text"
+                placeholder="Search tasks…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                aria-label="Search tasks"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  className="icon-button"
+                  onClick={() => setSearchQuery('')}
+                  aria-label="Clear search"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+            <TaskTable
+              ranked={ranked}
+              projectsById={projectsById}
+              sectionsById={sectionsById}
+              completingIds={completingIds}
+              onComplete={handleComplete}
+              taskIdsWithComments={taskIdsWithComments}
+              emptyMessage={searchQuery ? `No tasks match "${searchQuery}".` : undefined}
+            />
+          </main>
+        )}
 
         <DragOverlay>{activeDragTask ? <div className="drag-overlay-card">{activeDragTask.content}</div> : null}</DragOverlay>
       </DndContext>

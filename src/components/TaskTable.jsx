@@ -110,9 +110,9 @@ function TaskRow({ task, breakdown, projectsById, sectionsById, isCompleting, on
   )
 }
 
-export default function TaskTable({ ranked, projectsById, sectionsById, completingIds, onComplete, taskIdsWithComments }) {
+export default function TaskTable({ ranked, projectsById, sectionsById, completingIds, onComplete, taskIdsWithComments, emptyMessage }) {
   if (ranked.length === 0) {
-    return <p className="empty">No tasks left in the list — everything's either done or in Up Next.</p>
+    return <p className="empty">{emptyMessage ?? "No tasks left in the list — everything's either done or in Up Next."}</p>
   }
 
   return (

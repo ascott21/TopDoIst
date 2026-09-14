@@ -58,6 +58,12 @@ button:disabled {
   font-size: 1rem;
 }
 
+.icon-button.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
 input[type='password'],
 input[type='text'],
 input[type='number'],
@@ -468,6 +474,18 @@ select {
   gap: 0.35rem;
   font-size: 0.75rem;
   color: var(--text-muted);
+}
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+
+.search-bar input[type='text'] {
+  flex: 1;
+  min-width: 0;
 }
 
 .task-table {
