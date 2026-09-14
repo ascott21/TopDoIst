@@ -446,9 +446,23 @@ export default function App() {
   }
 
   async function handleComplete(taskId) {
+    const task = tasksById[taskId]
     setCompletingIds((prev) => new Set(prev).add(taskId))
     try {
       await closeTask(token, taskId)
+
+      // A recurring task doesn't actually disappear when closed — Todoist
+      // just advances it to its next occurrence, keeping the same id and
+      // labels. Left alone, one that was in Up Next would silently
+      // reappear there (now with a new due date) on the next refresh.
+      // Stripping the label is best-effort: if it fails, the task still
+      // closed successfully, and it just falls back to reappearing in Up
+      // Next like it would have before this existed.
+      if (task?.due?.is_recurring && hasUpNextLabel(task)) {
+        const newLabels = withLabelRemoved(task.labels, UP_NEXT_LABEL)
+        await updateTaskLabels(token, taskId, newLabels).catch(() => {})
+      }
+
       setTasks((prev) => prev.filter((t) => t.id !== taskId))
       setUpNextOrder((prev) => prev.filter((id) => id !== taskId))
       setCompletingIds((prev) => {

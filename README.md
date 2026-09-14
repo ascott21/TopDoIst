@@ -119,6 +119,15 @@ Todoist and removes it from the list; a press-and-hold-then-move picks it
 up to drag. The brief hold before a drag starts is what lets a tap still
 reach the checkbox instead of always starting a drag.
 
+Completing a **recurring** task that's in Up Next also strips the Up Next
+label. Todoist doesn't actually remove a recurring task when you close it
+— it just advances the same task to its next occurrence, labels and all —
+so without this it would silently reappear in Up Next with a new due date
+right after you finished it. This is best-effort: the completion itself
+never fails because of it, so on the rare chance the label write fails,
+the task just falls back to reappearing in Up Next like it would have
+before.
+
 ## Live updates
 
 The app quietly re-fetches from Todoist every 15 seconds, so a task added
