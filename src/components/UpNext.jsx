@@ -4,7 +4,7 @@ import { CSS } from '@dnd-kit/utilities'
 import CompleteCheckbox from './CompleteCheckbox'
 import PriorityDot from './PriorityDot'
 import TaskIndicators from './TaskIndicators'
-import { taskUrl, formatProjectMeta } from '../lib/taskDisplay'
+import { taskUrl, formatProjectMeta, formatDue, isOverdue } from '../lib/taskDisplay'
 import { useCoarsePointer } from '../lib/useCoarsePointer'
 
 // A dedicated droppable id for the empty state, since there are no sortable
@@ -36,11 +36,24 @@ function UpNextItem({ task, projectsById, sectionsById, isCompleting, onComplete
         <span className="up-next-meta">
           <PriorityDot priority={task.priority} />
           {formatProjectMeta(task, projectsById, sectionsById)}
+          {task.due && (
+            // Showing the due date here (not just in the ranked table)
+            // means a recurring task that comes back around is visible
+            // right in Up Next, not just something you find out about
+            // when it unexpectedly reappears.
+            <span className={isOverdue(task.due) ? 'due-overdue' : undefined}>· {formatDue(task.due)}</span>
+          )}
           <TaskIndicators hasDescription={!!task.description?.trim()} hasComments={hasComments} />
         </span>
       </span>
-      <button type="button" className="link-button" onClick={() => onRemove(task.id)}>
-        Remove
+      <button
+        type="button"
+        className="icon-button up-next-remove"
+        onClick={() => onRemove(task.id)}
+        aria-label="Remove from Up Next"
+        title="Remove from Up Next"
+      >
+        ×
       </button>
     </li>
   )

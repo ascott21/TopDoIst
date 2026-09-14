@@ -476,6 +476,19 @@ select {
   color: var(--text-muted);
 }
 
+.up-next-remove {
+  flex-shrink: 0;
+  padding: 0.3rem 0.55rem;
+  line-height: 1;
+  font-size: 1.1rem;
+  color: var(--text-muted);
+}
+
+.up-next-remove:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
 .search-bar {
   display: flex;
   align-items: center;
