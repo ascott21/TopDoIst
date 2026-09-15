@@ -5,7 +5,7 @@ import TaskIndicators from './TaskIndicators'
 import { taskUrl, formatProjectMeta, formatDue, isOverdue } from '../lib/taskDisplay'
 import { useCoarsePointer } from '../lib/useCoarsePointer'
 
-function TaskRow({ task, breakdown, projectsById, sectionsById, isCompleting, onComplete, hasComments }) {
+function TaskRow({ task, breakdown, projectsById, sectionsById, isCompleting, onComplete, hasComments, openInDesktopApp }) {
   // Deliberately not sortable — this list is algorithmically ranked, not
   // manually reorderable. Dragging one out just needs a source; where it's
   // dropped (Up Next) is what makes it sortable.
@@ -35,7 +35,10 @@ function TaskRow({ task, breakdown, projectsById, sectionsById, isCompleting, on
         <CompleteCheckbox checked={isCompleting} onComplete={() => onComplete(task.id)} dragProps={isCoarse ? dragProps : {}} />
       </td>
       <td className="col-task">
-        <a href={taskUrl(task)} target="_blank" rel="noreferrer">
+        {/* A todoist:// link isn't a real page to load in a new tab — just
+            a handoff to the desktop app — so target/rel only apply to the
+            normal web link. */}
+        <a href={taskUrl(task, { desktopApp: openInDesktopApp })} {...(openInDesktopApp ? {} : { target: '_blank', rel: 'noreferrer' })}>
           {task.content}
         </a>
         {task.labels?.length > 0 && (
@@ -58,7 +61,16 @@ function TaskRow({ task, breakdown, projectsById, sectionsById, isCompleting, on
   )
 }
 
-export default function TaskTable({ ranked, projectsById, sectionsById, completingIds, onComplete, taskIdsWithComments, emptyMessage }) {
+export default function TaskTable({
+  ranked,
+  projectsById,
+  sectionsById,
+  completingIds,
+  onComplete,
+  taskIdsWithComments,
+  emptyMessage,
+  openInDesktopApp,
+}) {
   if (ranked.length === 0) {
     return <p className="empty">{emptyMessage ?? "No tasks left in the list — everything's either done or in Up Next."}</p>
   }
@@ -83,6 +95,7 @@ export default function TaskTable({ ranked, projectsById, sectionsById, completi
             isCompleting={completingIds.has(task.id)}
             onComplete={onComplete}
             hasComments={taskIdsWithComments.has(task.id)}
+            openInDesktopApp={openInDesktopApp}
           />
         ))}
       </tbody>

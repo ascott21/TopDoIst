@@ -31,6 +31,7 @@ const ASSIGNMENT_MODE_KEY = 'topdoist:assignmentMode'
 const PROJECT_FILTER_KEY = 'topdoist:selectedProjectIds'
 const LABEL_BONUSES_KEY = 'topdoist:labelBonuses'
 const FOCUS_MODE_KEY = 'topdoist:focusMode'
+const OPEN_IN_DESKTOP_APP_KEY = 'topdoist:openInDesktopApp'
 const POLL_INTERVAL_MS = 15000
 
 function loadUpNextOrder() {
@@ -132,6 +133,14 @@ function loadFocusMode() {
   }
 }
 
+function loadOpenInDesktopApp() {
+  try {
+    return localStorage.getItem(OPEN_IN_DESKTOP_APP_KEY) === 'true'
+  } catch {
+    return false
+  }
+}
+
 // Matches a task's title, description, and labels — whichever the query
 // shows up in, case-insensitively. Only touches the ranked list; Up Next
 // is short and manually curated, so there's nothing there worth searching.
@@ -159,6 +168,7 @@ export default function App() {
   const [selectedProjectIds, setSelectedProjectIds] = useState(loadSelectedProjectIds)
   const [assignmentMode, setAssignmentMode] = useState(loadAssignmentMode)
   const [focusMode, setFocusMode] = useState(loadFocusMode)
+  const [openInDesktopApp, setOpenInDesktopApp] = useState(loadOpenInDesktopApp)
   const [searchQuery, setSearchQuery] = useState('')
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -222,6 +232,13 @@ export default function App() {
       // ignore storage failures
     }
   }, [focusMode])
+  useEffect(() => {
+    try {
+      localStorage.setItem(OPEN_IN_DESKTOP_APP_KEY, String(openInDesktopApp))
+    } catch {
+      // ignore storage failures
+    }
+  }, [openInDesktopApp])
 
   // `silent` is what a background poll uses: no "Refreshing…" flicker on
   // the button, and a failure (e.g. one dropped request) is swallowed
@@ -577,6 +594,7 @@ export default function App() {
           onComplete={handleComplete}
           onRemove={handleRemoveFromUpNext}
           taskIdsWithComments={taskIdsWithComments}
+          openInDesktopApp={openInDesktopApp}
         />
 
         {!focusMode && (
@@ -608,6 +626,7 @@ export default function App() {
               onComplete={handleComplete}
               taskIdsWithComments={taskIdsWithComments}
               emptyMessage={searchQuery ? `No tasks match "${searchQuery}".` : undefined}
+              openInDesktopApp={openInDesktopApp}
             />
           </main>
         )}
@@ -632,6 +651,8 @@ export default function App() {
         onSetLabelBonus={handleSetLabelBonus}
         onRemoveLabelBonus={handleRemoveLabelBonus}
         onResetLabelBonuses={handleResetLabelBonuses}
+        openInDesktopApp={openInDesktopApp}
+        onOpenInDesktopAppChange={setOpenInDesktopApp}
       />
     </div>
   )

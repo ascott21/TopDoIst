@@ -6,7 +6,16 @@ import { dueCalendarDate, dueHasTime, dueTime } from './dueDate'
 
 // Todoist's unified API v1 dropped the `url` field the old REST v2 tasks
 // had, so we reconstruct the web-app deep link from the task id ourselves.
-export function taskUrl(task) {
+//
+// Todoist's desktop (and mobile) apps register as the handler for a
+// `todoist://` URI scheme, so a `todoist://task?id=<id>` link opens
+// straight into the native app instead of a browser tab — but only on a
+// machine that actually has it installed and registered; anywhere else
+// the link just does nothing when clicked, no fallback. That's why this
+// is opt-in per device (see the "Open tasks in" setting) rather than the
+// default for everyone using a shared deployment of this app.
+export function taskUrl(task, { desktopApp = false } = {}) {
+  if (desktopApp) return `todoist://task?id=${task.id}`
   return task.url ?? `https://todoist.com/app/task/${task.id}`
 }
 

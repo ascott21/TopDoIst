@@ -13,7 +13,7 @@ import { useCoarsePointer } from '../lib/useCoarsePointer'
 // needed.
 export const EMPTY_DROPPABLE_ID = 'up-next-empty'
 
-function UpNextItem({ task, projectsById, sectionsById, isCompleting, onComplete, onRemove, hasComments }) {
+function UpNextItem({ task, projectsById, sectionsById, isCompleting, onComplete, onRemove, hasComments, openInDesktopApp }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id })
   const isCoarse = useCoarsePointer()
   const dragProps = { ...attributes, ...listeners }
@@ -30,7 +30,7 @@ function UpNextItem({ task, projectsById, sectionsById, isCompleting, onComplete
     >
       <CompleteCheckbox checked={isCompleting} onComplete={() => onComplete(task.id)} dragProps={isCoarse ? dragProps : {}} />
       <span className="up-next-content">
-        <a href={taskUrl(task)} target="_blank" rel="noreferrer">
+        <a href={taskUrl(task, { desktopApp: openInDesktopApp })} {...(openInDesktopApp ? {} : { target: '_blank', rel: 'noreferrer' })}>
           {task.content}
         </a>
         <span className="up-next-meta">
@@ -59,7 +59,16 @@ function UpNextItem({ task, projectsById, sectionsById, isCompleting, onComplete
   )
 }
 
-export default function UpNext({ tasks, projectsById, sectionsById, completingIds, onComplete, onRemove, taskIdsWithComments }) {
+export default function UpNext({
+  tasks,
+  projectsById,
+  sectionsById,
+  completingIds,
+  onComplete,
+  onRemove,
+  taskIdsWithComments,
+  openInDesktopApp,
+}) {
   const { setNodeRef, isOver } = useDroppable({ id: EMPTY_DROPPABLE_ID })
 
   if (tasks.length === 0) {
@@ -88,6 +97,7 @@ export default function UpNext({ tasks, projectsById, sectionsById, completingId
               onComplete={onComplete}
               onRemove={onRemove}
               hasComments={taskIdsWithComments.has(task.id)}
+              openInDesktopApp={openInDesktopApp}
             />
           ))}
         </ol>

@@ -179,6 +179,16 @@ The gear icon opens a settings panel with:
   editable in place, or removable. Points can be negative, to push tasks
   with that label down instead of up. "Reset to defaults" brings back just
   `long`.
+- **Links** — "Open tasks in the Todoist desktop app" switches every task
+  title from a `https://todoist.com/...` link to a `todoist://task?id=...`
+  one, which the desktop (and mobile) app registers itself as the handler
+  for, so it opens straight into the native app instead of a browser tab.
+  Off by default and **not** synced anywhere: it's stored in this
+  browser's `localStorage` like the other settings, so it's a per-device
+  choice on purpose. Turn it on only on a machine that actually has the
+  Todoist desktop app installed — anywhere else, clicking a task will do
+  nothing, since there's no page to fall back to and no way for this app
+  to detect whether a handler is registered before you click.
 
 Each task's project (and section, if it's in one) shows in small type
 under its title. A small document icon there means the task has a

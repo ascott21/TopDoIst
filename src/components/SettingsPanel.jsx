@@ -21,6 +21,8 @@ export default function SettingsPanel({
   onSetLabelBonus,
   onRemoveLabelBonus,
   onResetLabelBonuses,
+  openInDesktopApp,
+  onOpenInDesktopAppChange,
 }) {
   // Close on Escape, for anyone who doesn't want to reach for the mouse.
   useEffect(() => {
@@ -82,6 +84,23 @@ export default function SettingsPanel({
             onRemoveBonus={onRemoveLabelBonus}
             onReset={onResetLabelBonuses}
           />
+        </section>
+
+        <section className="settings-section">
+          <h3>Links</h3>
+          <label className="checkbox-option">
+            <input
+              type="checkbox"
+              checked={openInDesktopApp}
+              onChange={(e) => onOpenInDesktopAppChange(e.target.checked)}
+            />
+            Open tasks in the Todoist desktop app
+          </label>
+          <span className="weight-hint">
+            Uses Todoist's todoist:// links instead of the website. Only turn this on if the
+            Todoist desktop app is installed on this device — otherwise clicking a task will do
+            nothing. This is a per-device setting, not synced anywhere.
+          </span>
         </section>
       </aside>
     </div>
