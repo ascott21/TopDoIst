@@ -247,3 +247,17 @@ variant of the same design that isn't wired in anywhere currently; swap
 `prefers-color-scheme` media query in `index.html`) if the light version
 ever stops being the right call for the tab-bar/OS chrome it was chosen
 for.
+
+`public/apple-touch-icon.png` is a separate 180×180 PNG for the same
+design — iOS's "Add to Home Screen" doesn't look at the SVG favicon at
+all, only at an `apple-touch-icon` link, and only accepts a raster image.
+Without it iOS quietly falls back to a generated letter tile instead of
+erroring, which is why this is easy to miss. It's a flattened render of
+the same artwork with the background as a plain full-bleed square rather
+than the SVG's pre-rounded corners — iOS applies its own corner mask to
+home screen icons, so a source image with transparent corners (from the
+rounded rect) risks iOS's transparency-becomes-black behavior showing
+through where the two roundings don't quite line up. Regenerate it with
+`node` + Playwright (rendering the same three-bar artwork at 180×180) if
+the design ever changes; there's no build-time step that keeps it in sync
+with `icon.svg` automatically.

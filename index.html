@@ -4,6 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <!-- iOS's "Add to Home Screen" can't use the SVG favicon — it only
+         looks at apple-touch-icon, and only accepts a PNG. Without this it
+         silently falls back to a generated letter tile instead of erroring,
+         which is why the omission wasn't obvious until someone tried it. -->
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>TopDoist</title>
   </head>
   <body>
