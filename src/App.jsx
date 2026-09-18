@@ -141,15 +141,18 @@ function loadOpenInDesktopApp() {
   }
 }
 
-// Matches a task's title, description, and labels — whichever the query
-// shows up in, case-insensitively. Only touches the ranked list; Up Next
-// is short and manually curated, so there's nothing there worth searching.
-function taskMatchesSearch(task, query) {
+// Matches a task's title, description, labels, project name, and section
+// name — whichever the query shows up in, case-insensitively. Only touches
+// the ranked list; Up Next is short and manually curated, so there's
+// nothing there worth searching.
+function taskMatchesSearch(task, query, { projectsById, sectionsById } = {}) {
   if (!query) return true
   const q = query.toLowerCase()
   if (task.content.toLowerCase().includes(q)) return true
   if (task.description && task.description.toLowerCase().includes(q)) return true
   if (task.labels?.some((label) => label.toLowerCase().includes(q))) return true
+  if (projectsById?.[task.project_id]?.name.toLowerCase().includes(q)) return true
+  if (task.section_id && sectionsById?.[task.section_id]?.name.toLowerCase().includes(q)) return true
   return false
 }
 
@@ -361,8 +364,8 @@ export default function App() {
   }, [tasks, selectedProjectIds, assignmentMode, projectsById, currentUserId])
 
   const searchedTasks = useMemo(
-    () => filteredTasks.filter((t) => taskMatchesSearch(t, searchQuery)),
-    [filteredTasks, searchQuery],
+    () => filteredTasks.filter((t) => taskMatchesSearch(t, searchQuery, { projectsById, sectionsById })),
+    [filteredTasks, searchQuery, projectsById, sectionsById],
   )
 
   const ranked = useMemo(
