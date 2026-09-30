@@ -1,6 +1,5 @@
-// How to handle tasks in shared projects, based on who they're assigned to.
-// Assignment only exists in shared projects — a task in a project only you
-// belong to is never filtered out by this setting.
+// Which tasks in shared projects to show, based on who they're assigned to.
+// Tasks in unshared projects always show.
 export const ASSIGNMENT_MODES = {
   ALL: 'all',
   UNASSIGNED_OR_ME: 'unassigned-or-me',

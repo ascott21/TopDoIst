@@ -1,15 +1,17 @@
+import { DEFAULT_WEIGHTS } from '../lib/scoring'
+
 const SLIDERS = [
   { key: 'priority', label: 'Priority', hint: "weight on Todoist's P1-P4 flag" },
   { key: 'due', label: 'Due date urgency', hint: 'weight on overdue / due-soon' },
   { key: 'staleness', label: 'Staleness', hint: 'weight on how long a task has sat idle' },
 ]
 
-export default function WeightControls({ weights, onChange, onReset }) {
+export default function WeightControls({ weights, onChange }) {
   return (
     <div className="weight-controls">
       <div className="weight-controls-header">
         <h2>Weights</h2>
-        <button type="button" className="link-button" onClick={onReset}>
+        <button type="button" className="link-button" onClick={() => onChange(DEFAULT_WEIGHTS)}>
           Reset to defaults
         </button>
       </div>

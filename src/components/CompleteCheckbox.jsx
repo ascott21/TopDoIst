@@ -1,9 +1,6 @@
-// Doubles as the drag handle: dnd-kit's activation constraints (a small
-// move for mouse, a brief hold for touch) mean a plain tap still reaches
-// onComplete instead of starting a drag, while a deliberate press-and-move
-// picks the task up. Spread `dragProps` (dnd-kit's attributes + listeners)
-// here, not on the row/item itself, so dragging can only start from this
-// control — never from a stray touch on the task title or a page scroll.
+// Also the drag handle on touch screens, where `dragProps` (dnd-kit's
+// attributes and listeners) are passed in; a drag only starts after a short
+// hold, so a plain tap still completes the task.
 export default function CompleteCheckbox({ checked, onComplete, dragProps }) {
   return (
     <button

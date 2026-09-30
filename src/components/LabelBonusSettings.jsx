@@ -1,38 +1,46 @@
 import { useState } from 'react'
+import { DEFAULT_LABEL_BONUSES } from '../lib/scoring'
 
-// Lets the user decide which labels bump a task's score, and by how much.
-// Points are added directly to the final score (see src/lib/scoring.js) —
-// a positive number pushes matching tasks up, a negative one pushes them
-// down.
-export default function LabelBonusSettings({ labelBonuses, availableLabels, onSetBonus, onRemoveBonus, onReset }) {
+// Which labels add points to a task's score, and how many. Negative points
+// push matching tasks down.
+export default function LabelBonusSettings({ labelBonuses, availableLabels, onChange }) {
   const [newLabel, setNewLabel] = useState('')
   const [newPoints, setNewPoints] = useState('')
 
   const entries = Object.entries(labelBonuses)
-  // Suggest labels that don't already have a bonus configured, so the
-  // autocomplete list doesn't clutter up with ones already in the list above.
+  // Only suggest labels that don't have a bonus yet.
   const suggestions = availableLabels.filter((l) => !Object.hasOwn(labelBonuses, l.toLowerCase()))
+
+  function setBonus(label, points) {
+    onChange({ ...labelBonuses, [label]: points })
+  }
+
+  function removeBonus(label) {
+    const next = { ...labelBonuses }
+    delete next[label]
+    onChange(next)
+  }
 
   function handleAdd(e) {
     e.preventDefault()
     const label = newLabel.trim().toLowerCase()
     const points = parseFloat(newPoints)
     if (!label || Number.isNaN(points)) return
-    onSetBonus(label, points)
+    setBonus(label, points)
     setNewLabel('')
     setNewPoints('')
   }
 
   function handlePointsChange(label, rawValue) {
     const points = parseFloat(rawValue)
-    if (!Number.isNaN(points)) onSetBonus(label, points)
+    if (!Number.isNaN(points)) setBonus(label, points)
   }
 
   return (
     <div className="label-bonus-settings">
       <div className="settings-subheader">
         <h2>Label bonuses</h2>
-        <button type="button" className="link-button" onClick={onReset}>
+        <button type="button" className="link-button" onClick={() => onChange(DEFAULT_LABEL_BONUSES)}>
           Reset to defaults
         </button>
       </div>
@@ -52,7 +60,7 @@ export default function LabelBonusSettings({ labelBonuses, availableLabels, onSe
                 className="label-bonus-points"
                 aria-label={`Points for ${label}`}
               />
-              <button type="button" className="link-button" onClick={() => onRemoveBonus(label)}>
+              <button type="button" className="link-button" onClick={() => removeBonus(label)}>
                 Remove
               </button>
             </li>
