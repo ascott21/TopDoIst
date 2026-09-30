@@ -11,7 +11,7 @@ export default function LabelBonusSettings({ labelBonuses, availableLabels, onSe
   const entries = Object.entries(labelBonuses)
   // Suggest labels that don't already have a bonus configured, so the
   // autocomplete list doesn't clutter up with ones already in the list above.
-  const suggestions = availableLabels.filter((l) => !(l.toLowerCase() in labelBonuses))
+  const suggestions = availableLabels.filter((l) => !Object.hasOwn(labelBonuses, l.toLowerCase()))
 
   function handleAdd(e) {
     e.preventDefault()

@@ -2,7 +2,7 @@
 // so the two don't drift out of sync on how a task's link, meta line, or
 // due date is shown.
 
-import { dueCalendarDate, dueHasTime, dueTime } from './dueDate'
+import { dueCalendarDate, dueHasTime, dueInstant, dueTime } from './dueDate'
 
 // Todoist's unified API v1 dropped the `url` field the old REST v2 tasks
 // had, so we reconstruct the web-app deep link from the task id ourselves.
@@ -71,8 +71,9 @@ export function formatDue(due) {
   return label
 }
 
+// Uses the same due instant as scoring, so a task due today at 9:00 AM shows
+// as overdue from 9:00 AM on, and a date-only task once its day has ended.
 export function isOverdue(due) {
-  const date = dueCalendarDate(due)
-  if (!date || Number.isNaN(date.getTime())) return false
-  return daysFromToday(date) < 0
+  const instant = dueInstant(due)
+  return instant !== null && instant.getTime() < Date.now()
 }

@@ -172,7 +172,7 @@ The gear icon opens a settings panel with:
   if it's labeled Up Next.
 - **Weights** — sliders for the three scoring signals described above.
   Changes re-rank instantly using the tasks already loaded (no need to
-  refetch).
+  refetch), and are saved in this browser like the other settings.
 - **Label bonuses** — add, edit, or remove which labels affect a task's
   score and by how much. Type a label name (your own Todoist labels are
   offered as suggestions) and a point value, then Add; existing ones are

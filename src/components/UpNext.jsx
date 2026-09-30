@@ -7,11 +7,11 @@ import TaskIndicators from './TaskIndicators'
 import { taskUrl, formatProjectMeta, formatDue, isOverdue } from '../lib/taskDisplay'
 import { useCoarsePointer } from '../lib/useCoarsePointer'
 
-// A dedicated droppable id for the empty state, since there are no sortable
-// items yet to collide against. Once the list has items, dropping near any
-// of them (via closestCenter) is enough — no separate container droppable
-// needed.
-export const EMPTY_DROPPABLE_ID = 'up-next-empty'
+// The whole Up Next section is one droppable zone. It's what decides
+// whether a drop lands in Up Next at all (see upNextCollisionDetection in
+// App.jsx), and it's the drop target itself while the list is empty and
+// there are no items to drop next to.
+export const UP_NEXT_DROPPABLE_ID = 'up-next'
 
 function UpNextItem({ task, projectsById, sectionsById, isCompleting, onComplete, onRemove, hasComments, openInDesktopApp }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id })
@@ -69,7 +69,7 @@ export default function UpNext({
   taskIdsWithComments,
   openInDesktopApp,
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id: EMPTY_DROPPABLE_ID })
+  const { setNodeRef, isOver } = useDroppable({ id: UP_NEXT_DROPPABLE_ID })
 
   if (tasks.length === 0) {
     return (
@@ -83,7 +83,7 @@ export default function UpNext({
   }
 
   return (
-    <section className="up-next">
+    <section className="up-next" ref={setNodeRef}>
       <h2>Up Next</h2>
       <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
         <ol className="up-next-list">

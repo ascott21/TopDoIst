@@ -96,11 +96,14 @@ function stalenessScore(task, now) {
   return Math.min(days / 30, 1)
 }
 
+// Object.hasOwn rather than a plain lookup, so a label that happens to be
+// named like a built-in object property ("constructor", "toString") doesn't
+// pull in that property instead of a number.
 function labelBonus(task, labelBonuses) {
   if (!task.labels?.length) return 0
   return task.labels.reduce((sum, label) => {
     const key = label.toLowerCase()
-    return sum + (labelBonuses[key] ?? 0)
+    return sum + (Object.hasOwn(labelBonuses, key) ? labelBonuses[key] : 0)
   }, 0)
 }
 
