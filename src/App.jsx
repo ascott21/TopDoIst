@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { DndContext, DragOverlay, PointerSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core'
+import { DndContext, DragOverlay, PointerSensor, closestCenter, pointerWithin, useSensor, useSensors } from '@dnd-kit/core'
 import { arrayMove } from '@dnd-kit/sortable'
 import {
   clearStoredToken,
@@ -20,19 +20,32 @@ import { UP_NEXT_LABEL, hasUpNextLabel, withLabelAdded, withLabelRemoved } from 
 import TokenGate from './components/TokenGate'
 import SettingsPanel from './components/SettingsPanel'
 import TaskTable from './components/TaskTable'
-import UpNext, { EMPTY_DROPPABLE_ID } from './components/UpNext'
+import UpNext, { UP_NEXT_DROPPABLE_ID } from './components/UpNext'
 
-// Same storage key as before this became label-based — it just changed
-// role, from "the source of truth for Up Next" to "a local hint for the
-// order of tasks that carry the Up Next label." No migration of the data
-// itself is needed, only of what it means.
+// A local hint for the order of tasks that carry the Up Next label — the
+// label alone decides membership, so ids here for unlabeled tasks are ignored.
 const UP_NEXT_ORDER_KEY = 'topdoist:upnext'
 const ASSIGNMENT_MODE_KEY = 'topdoist:assignmentMode'
 const PROJECT_FILTER_KEY = 'topdoist:selectedProjectIds'
 const LABEL_BONUSES_KEY = 'topdoist:labelBonuses'
 const FOCUS_MODE_KEY = 'topdoist:focusMode'
 const OPEN_IN_DESKTOP_APP_KEY = 'topdoist:openInDesktopApp'
+const WEIGHTS_KEY = 'topdoist:weights'
 const POLL_INTERVAL_MS = 15000
+
+// closestCenter alone always reports the nearest droppable however far away
+// it is, so a task dropped back onto the ranked table would still land in
+// Up Next. Only count a drop while the pointer is inside the Up Next
+// section; there, pick the closest item to set the position, or the
+// section itself when it has no items yet.
+function upNextCollisionDetection(args) {
+  const isOverUpNext = pointerWithin(args).some((c) => c.id === UP_NEXT_DROPPABLE_ID)
+  if (!isOverUpNext) return []
+
+  const items = args.droppableContainers.filter((c) => c.id !== UP_NEXT_DROPPABLE_ID)
+  const closestItems = closestCenter({ ...args, droppableContainers: items })
+  return closestItems.length > 0 ? closestItems : [{ id: UP_NEXT_DROPPABLE_ID }]
+}
 
 function loadUpNextOrder() {
   try {
@@ -48,34 +61,6 @@ function saveUpNextOrder(ids) {
   } catch {
     // ignore storage failures
   }
-}
-
-// One-time-per-load adoption: any task from the old local-only Up Next
-// list that doesn't carry the Up Next label yet (i.e. from before this
-// label-based approach existed) gets the label applied, so nothing
-// already in progress appears to silently vanish. Safe to call on every
-// load — once a task has the label there's nothing left to migrate for
-// it, so this is a no-op after the first successful run.
-async function migrateLegacyUpNext(activeToken, taskData) {
-  const orderIds = loadUpNextOrder()
-  if (orderIds.length === 0) return taskData
-
-  const taskMap = new Map(taskData.map((t) => [t.id, t]))
-  const toMigrate = orderIds.filter((id) => {
-    const task = taskMap.get(id)
-    return task && !hasUpNextLabel(task)
-  })
-  if (toMigrate.length === 0) return taskData
-
-  const results = await Promise.allSettled(
-    toMigrate.map((id) => {
-      const newLabels = withLabelAdded(taskMap.get(id).labels, UP_NEXT_LABEL)
-      return updateTaskLabels(activeToken, id, newLabels).then(() => id)
-    }),
-  )
-  const migratedIds = new Set(results.filter((r) => r.status === 'fulfilled').map((r) => r.value))
-
-  return taskData.map((t) => (migratedIds.has(t.id) ? { ...t, labels: withLabelAdded(t.labels, UP_NEXT_LABEL) } : t))
 }
 
 // A task's own object never says whether it has comments — the only way
@@ -125,6 +110,17 @@ function loadLabelBonuses() {
   }
 }
 
+// Merged over the defaults so a weight added in a later version still gets
+// a value for anyone with an older saved set.
+function loadWeights() {
+  try {
+    const raw = localStorage.getItem(WEIGHTS_KEY)
+    return raw == null ? DEFAULT_WEIGHTS : { ...DEFAULT_WEIGHTS, ...JSON.parse(raw) }
+  } catch {
+    return DEFAULT_WEIGHTS
+  }
+}
+
 function loadFocusMode() {
   try {
     return localStorage.getItem(FOCUS_MODE_KEY) === 'true'
@@ -166,7 +162,7 @@ export default function App() {
   // load, not on every 15s poll (see fetchTaskIdsWithComments).
   const [taskIdsWithComments, setTaskIdsWithComments] = useState(() => new Set())
   const [currentUserId, setCurrentUserId] = useState(null)
-  const [weights, setWeights] = useState(DEFAULT_WEIGHTS)
+  const [weights, setWeights] = useState(loadWeights)
   const [labelBonuses, setLabelBonuses] = useState(loadLabelBonuses)
   const [selectedProjectIds, setSelectedProjectIds] = useState(loadSelectedProjectIds)
   const [assignmentMode, setAssignmentMode] = useState(loadAssignmentMode)
@@ -196,6 +192,17 @@ export default function App() {
     completingIdsRef.current = completingIds
   }, [completingIds])
   const pendingWritesRef = useRef(0)
+
+  // Bumped by every local change a fetch already in flight can't know about:
+  // an Up Next label write, a completion, or signing out. A load whose count
+  // moved while it was waiting drops its result, since applying that older
+  // data would briefly undo the change (or, after signing out, sign you back
+  // in). The next poll picks up the real state.
+  const localChangeCountRef = useRef(0)
+
+  function isBusy() {
+    return activeDragIdRef.current !== null || completingIdsRef.current.size > 0 || pendingWritesRef.current > 0
+  }
 
   // A single PointerSensor handles mouse, touch, and pen uniformly (Pointer
   // Events unify all three). Using PointerSensor and TouchSensor together
@@ -230,6 +237,13 @@ export default function App() {
   }, [labelBonuses])
   useEffect(() => {
     try {
+      localStorage.setItem(WEIGHTS_KEY, JSON.stringify(weights))
+    } catch {
+      // ignore storage failures
+    }
+  }, [weights])
+  useEffect(() => {
+    try {
       localStorage.setItem(FOCUS_MODE_KEY, String(focusMode))
     } catch {
       // ignore storage failures
@@ -247,7 +261,12 @@ export default function App() {
   // the button, and a failure (e.g. one dropped request) is swallowed
   // rather than flashed as an error banner every 15 seconds — the manual
   // Refresh button is still there if something's actually wrong.
+  //
+  // Returns whether the fetched data was applied.
   async function loadFromTodoist(activeToken, { silent = false } = {}) {
+    const changeCountAtStart = localChangeCountRef.current
+    const isStale = () => localChangeCountRef.current !== changeCountAtStart || isBusy()
+
     if (!silent) {
       setLoading(true)
       setError('')
@@ -260,14 +279,13 @@ export default function App() {
         fetchLabels(activeToken),
         fetchCurrentUser(activeToken),
       ])
-      const migratedTaskData = await migrateLegacyUpNext(activeToken, taskData)
-      setTasks(migratedTaskData)
+      if (isStale()) return false
+
+      setTasks(taskData)
       setProjects(projectData)
       setSections(sectionData)
       setLabels(labelData)
       setCurrentUserId(user?.id ?? null)
-      storeToken(activeToken)
-      setToken(activeToken)
 
       // Comment presence costs one request per project, which the 15s
       // background poll can't absorb — only refresh it on a full load, and
@@ -282,10 +300,21 @@ export default function App() {
             // something this secondary.
           })
       }
+      return true
     } catch (err) {
-      if (!silent) setError(err.message || 'Something went wrong loading your tasks.')
+      if (!silent && !isStale()) setError(err.message || 'Something went wrong loading your tasks.')
+      return false
     } finally {
       if (!silent) setLoading(false)
+    }
+  }
+
+  // The token is only saved once Todoist has accepted it, so a typo never
+  // gets stored.
+  async function handleSubmitToken(newToken) {
+    if (await loadFromTodoist(newToken)) {
+      storeToken(newToken)
+      setToken(newToken)
     }
   }
 
@@ -305,10 +334,7 @@ export default function App() {
     if (!token) return
 
     function poll() {
-      if (document.visibilityState === 'hidden') return
-      if (activeDragIdRef.current !== null) return
-      if (completingIdsRef.current.size > 0) return
-      if (pendingWritesRef.current > 0) return
+      if (document.visibilityState === 'hidden' || isBusy()) return
       loadFromTodoist(token, { silent: true })
     }
 
@@ -396,6 +422,7 @@ export default function App() {
     setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, labels: newLabels } : t)))
     reorderUpNextLocally(taskId, targetIndex)
 
+    localChangeCountRef.current++
     pendingWritesRef.current++
     try {
       await updateTaskLabels(token, taskId, newLabels)
@@ -418,6 +445,7 @@ export default function App() {
     setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, labels: newLabels } : t)))
     setUpNextOrder((prev) => prev.filter((id) => id !== taskId))
 
+    localChangeCountRef.current++
     pendingWritesRef.current++
     try {
       await updateTaskLabels(token, taskId, newLabels)
@@ -442,7 +470,7 @@ export default function App() {
     const overId = over.id
     const displayedIds = upNextTasks.map((t) => t.id)
     const isInUpNext = (id) => displayedIds.includes(id)
-    const isDroppingOnUpNext = overId === EMPTY_DROPPABLE_ID || isInUpNext(overId)
+    const isDroppingOnUpNext = overId === UP_NEXT_DROPPABLE_ID || isInUpNext(overId)
     if (!isDroppingOnUpNext) return // only dropping into/within Up Next does anything
 
     if (isInUpNext(activeId)) {
@@ -467,6 +495,7 @@ export default function App() {
 
   async function handleComplete(taskId) {
     const task = tasksById[taskId]
+    localChangeCountRef.current++
     setCompletingIds((prev) => new Set(prev).add(taskId))
     try {
       await closeTask(token, taskId)
@@ -504,20 +533,22 @@ export default function App() {
     return selectedProjectIds === null || selectedProjectIds.includes(projectId)
   }
 
+  // Judged against the projects that exist now rather than the saved list,
+  // which can still hold ids of projects deleted since it was saved.
+  const allProjectsSelected = projects.length > 0 && projects.every((p) => isProjectSelected(p.id))
+
+  // Rebuilt from the current projects on every toggle, so ids of deleted
+  // projects drop out. Selecting every project goes back to `null` (no
+  // filter), so projects created later show up too.
   function handleToggleProject(projectId) {
-    setSelectedProjectIds((prev) => {
-      const current = new Set(prev === null ? projects.map((p) => p.id) : prev)
-      if (current.has(projectId)) current.delete(projectId)
-      else current.add(projectId)
-      return Array.from(current)
-    })
+    const selected = new Set(projects.filter((p) => isProjectSelected(p.id)).map((p) => p.id))
+    if (selected.has(projectId)) selected.delete(projectId)
+    else selected.add(projectId)
+    setSelectedProjectIds(selected.size === projects.length ? null : Array.from(selected))
   }
 
   function handleToggleAllProjects() {
-    setSelectedProjectIds((prev) => {
-      const allSelected = prev === null || prev.length === projects.length
-      return allSelected ? [] : null
-    })
+    setSelectedProjectIds(allProjectsSelected ? [] : null)
   }
 
   function handleSetLabelBonus(label, points) {
@@ -537,6 +568,7 @@ export default function App() {
   }
 
   function handleSignOut() {
+    localChangeCountRef.current++
     clearStoredToken()
     setToken('')
     setTasks([])
@@ -551,7 +583,7 @@ export default function App() {
   }
 
   if (!token) {
-    return <TokenGate onSubmit={loadFromTodoist} error={error} loading={loading} />
+    return <TokenGate onSubmit={handleSubmitToken} error={error} loading={loading} />
   }
 
   const activeDragTask = activeDragId ? tasksById[activeDragId] : null
@@ -588,7 +620,7 @@ export default function App() {
 
       {error && <p className="error">{error}</p>}
 
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      <DndContext sensors={sensors} collisionDetection={upNextCollisionDetection} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <UpNext
           tasks={upNextTasks}
           projectsById={projectsById}
@@ -645,6 +677,7 @@ export default function App() {
         onResetWeights={() => setWeights(DEFAULT_WEIGHTS)}
         projects={projects}
         isProjectSelected={isProjectSelected}
+        allProjectsSelected={allProjectsSelected}
         onToggleProject={handleToggleProject}
         onToggleAllProjects={handleToggleAllProjects}
         assignmentMode={assignmentMode}

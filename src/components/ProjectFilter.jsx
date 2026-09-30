@@ -1,6 +1,4 @@
-export default function ProjectFilter({ projects, isSelected, onToggleProject, onToggleAll }) {
-  const allSelected = projects.length > 0 && projects.every((p) => isSelected(p.id))
-
+export default function ProjectFilter({ projects, isSelected, allSelected, onToggleProject, onToggleAll }) {
   return (
     <div className="project-filter-list">
       <label className="checkbox-option checkbox-option-all">

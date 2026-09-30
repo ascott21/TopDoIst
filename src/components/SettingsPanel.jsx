@@ -12,6 +12,7 @@ export default function SettingsPanel({
   onResetWeights,
   projects,
   isProjectSelected,
+  allProjectsSelected,
   onToggleProject,
   onToggleAllProjects,
   assignmentMode,
@@ -67,6 +68,7 @@ export default function SettingsPanel({
           <ProjectFilter
             projects={projects}
             isSelected={isProjectSelected}
+            allSelected={allProjectsSelected}
             onToggleProject={onToggleProject}
             onToggleAll={onToggleAllProjects}
           />
