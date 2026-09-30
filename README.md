@@ -145,18 +145,23 @@ out of your way:
   the moment you switch back rather than waiting out the rest of the
   interval.
 - It's paused while a drag, a completion, or an Up Next label write is in
-  progress, so a poll landing mid-action can't step on it.
-- A failed background poll fails quietly rather than flashing an error —
+  progress. A poll that was already under way when one of those started
+  throws its result away rather than briefly undoing the change; the next
+  poll catches up.
+- It only fetches what changes often: tasks, projects, and sections.
+  Labels, your user info, and comment icons refresh on a full load or a
+  manual Refresh.
+- A poll that returns exactly what's already shown changes nothing on
+  screen, and a failed poll fails quietly rather than flashing an error —
   the manual Refresh button (and its own error handling) is still there
   if something's actually wrong.
 
 15 seconds was chosen with real margin against Todoist's rate limits in
 mind (sources put the limit somewhere around several hundred to a
-thousand requests per 15 minutes per token — at this interval a full
-refresh's ~5 requests works out to roughly 225–300 requests per 15
-minutes), including room for having the app open in more than one tab or
-device at once, which multiplies the request rate since each polls
-independently.
+thousand requests per 15 minutes per token — at this interval a poll's 3
+requests work out to 180 requests per 15 minutes), including room for
+having the app open in more than one tab or device at once, which
+multiplies the request rate since each polls independently.
 
 ## Settings
 
@@ -169,7 +174,8 @@ The gear icon opens a settings panel with:
 - **Project** — a checklist to show only the projects you check; there's
   an "All projects" master checkbox too. This applies to Up Next as well
   as the ranked table — a task in an unchecked project stays hidden even
-  if it's labeled Up Next.
+  if it's labeled Up Next. Once every project is checked again, projects
+  you create later show up too.
 - **Weights** — sliders for the three scoring signals described above.
   Changes re-rank instantly using the tasks already loaded (no need to
   refetch), and are saved in this browser like the other settings.
@@ -198,7 +204,8 @@ description icon is always current (it comes free with every task); the
 comments icon is refreshed only on a full load or manual Refresh, not on
 every 15-second background poll — see [Live updates](#live-updates) for
 why (Todoist's task data doesn't include a comment count, so checking
-means one extra request per project, too much to do every 15 seconds).
+means one extra request per project that has tasks, too much to do every
+15 seconds).
 
 The Due column reads relative to today ("Today," "Tomorrow," "in 3 days,"
 "3 days ago") within a week either direction, and a calendar date beyond
@@ -210,8 +217,8 @@ due on a date.
 ## Search
 
 The search box above the ranked table filters it as you type, matching a
-task's title, description, or labels (case-insensitive, substring match —
-no need for exact wording). It only affects the ranked list; Up Next is
+task's title, description, labels, project, or section (case-insensitive,
+substring match — no need for exact wording). It only affects the ranked list; Up Next is
 short and manually curated, so there's nothing there worth searching.
 Clearing the box (or the × next to it) brings everything back.
 
@@ -231,6 +238,8 @@ preferences.
 npm install
 npm run dev
 ```
+
+`npm test` runs the unit tests (Vitest) and `npm run lint` runs ESLint.
 
 On first load, paste in a Todoist API token (Todoist → Settings →
 Integrations → Developer). The token is stored only in your browser's

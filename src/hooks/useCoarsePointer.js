@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react'
 
-// True when the device's primary pointer is touch/coarse (phones, tablets)
-// rather than a mouse or trackpad. Used to decide how big a drag target to
-// offer: the whole row on a precise pointer, just the handle on touch (a
-// touch drag zone spanning the whole row would fight with scrolling).
+// True when the primary pointer is touch rather than a mouse or trackpad.
+// Touch devices get a smaller drag handle, so dragging doesn't fight with
+// scrolling.
 export function useCoarsePointer() {
   const [isCoarse, setIsCoarse] = useState(
     () => typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches,

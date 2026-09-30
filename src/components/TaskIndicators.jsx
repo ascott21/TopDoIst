@@ -1,7 +1,6 @@
-// Small, purely presence-based icons — no counts, just "there's more here
-// worth a look." Description comes free with every task fetch; comments
-// don't (see fetchCommentsForProject in api/todoist.js), so `hasComments`
-// may lag behind `hasDescription` in freshness — see App.jsx.
+// Icons that show a task has a description or comments, without counts.
+// Comment presence is only refreshed on a full load (see useTodoistData),
+// so it can lag behind the description icon.
 export default function TaskIndicators({ hasDescription, hasComments }) {
   if (!hasDescription && !hasComments) return null
 

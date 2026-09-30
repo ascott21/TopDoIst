@@ -1,46 +1,65 @@
-import { useDroppable } from '@dnd-kit/core'
+import { closestCenter, pointerWithin, useDroppable } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import CompleteCheckbox from './CompleteCheckbox'
 import PriorityDot from './PriorityDot'
 import TaskIndicators from './TaskIndicators'
-import { taskUrl, formatProjectMeta, formatDue, isOverdue } from '../lib/taskDisplay'
-import { useCoarsePointer } from '../lib/useCoarsePointer'
+import TaskLink from './TaskLink'
+import { formatProjectMeta, formatDue, isOverdue } from '../lib/taskDisplay'
 
-// The whole Up Next section is one droppable zone. It's what decides
-// whether a drop lands in Up Next at all (see upNextCollisionDetection in
-// App.jsx), and it's the drop target itself while the list is empty and
-// there are no items to drop next to.
+// The whole section is one droppable zone. It decides whether a drop lands in
+// Up Next at all, and is the drop target itself while the list is empty.
 export const UP_NEXT_DROPPABLE_ID = 'up-next'
 
-function UpNextItem({ task, projectsById, sectionsById, isCompleting, onComplete, onRemove, hasComments, openInDesktopApp }) {
+// closestCenter alone always reports the nearest droppable however far away
+// it is, so a task dropped back onto the ranked table would still land in
+// Up Next. A drop only counts while the pointer is inside the section;
+// there, the closest item sets the position.
+export function upNextCollisionDetection(args) {
+  const isOverUpNext = pointerWithin(args).some((c) => c.id === UP_NEXT_DROPPABLE_ID)
+  if (!isOverUpNext) return []
+
+  const items = args.droppableContainers.filter((c) => c.id !== UP_NEXT_DROPPABLE_ID)
+  const closestItems = closestCenter({ ...args, droppableContainers: items })
+  return closestItems.length > 0 ? closestItems : [{ id: UP_NEXT_DROPPABLE_ID }]
+}
+
+function UpNextItem({
+  task,
+  projectsById,
+  sectionsById,
+  isCompleting,
+  onComplete,
+  onRemove,
+  hasComments,
+  openInDesktopApp,
+  isCoarsePointer,
+}) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id })
-  const isCoarse = useCoarsePointer()
   const dragProps = { ...attributes, ...listeners }
-  const style = { transform: CSS.Transform.toString(transform), transition }
 
   return (
     <li
       ref={setNodeRef}
-      style={style}
-      className={`up-next-item${isDragging ? ' is-dragging' : ''}${!isCoarse ? ' row-draggable' : ''}`}
-      // Same mouse-vs-touch split as the ranked table: whole item on a
-      // precise pointer, handle-only on touch.
-      {...(isCoarse ? {} : dragProps)}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={`up-next-item${isDragging ? ' is-dragging' : ''}${isCoarsePointer ? '' : ' row-draggable'}`}
+      // Same split as the ranked table: drag from anywhere on a mouse, only
+      // from the checkbox on touch.
+      {...(isCoarsePointer ? {} : dragProps)}
     >
-      <CompleteCheckbox checked={isCompleting} onComplete={() => onComplete(task.id)} dragProps={isCoarse ? dragProps : {}} />
+      <CompleteCheckbox
+        checked={isCompleting}
+        onComplete={() => onComplete(task.id)}
+        dragProps={isCoarsePointer ? dragProps : {}}
+      />
       <span className="up-next-content">
-        <a href={taskUrl(task, { desktopApp: openInDesktopApp })} {...(openInDesktopApp ? {} : { target: '_blank', rel: 'noreferrer' })}>
-          {task.content}
-        </a>
+        <TaskLink task={task} openInDesktopApp={openInDesktopApp} />
         <span className="up-next-meta">
           <PriorityDot priority={task.priority} />
           {formatProjectMeta(task, projectsById, sectionsById)}
           {task.due && (
-            // Showing the due date here (not just in the ranked table)
-            // means a recurring task that comes back around is visible
-            // right in Up Next, not just something you find out about
-            // when it unexpectedly reappears.
+            // Makes it visible when a recurring task has come back around
+            // with a new date, rather than it silently reappearing.
             <span className={isOverdue(task.due) ? 'due-overdue' : undefined}>· {formatDue(task.due)}</span>
           )}
           <TaskIndicators hasDescription={!!task.description?.trim()} hasComments={hasComments} />
@@ -68,40 +87,35 @@ export default function UpNext({
   onRemove,
   taskIdsWithComments,
   openInDesktopApp,
+  isCoarsePointer,
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: UP_NEXT_DROPPABLE_ID })
-
-  if (tasks.length === 0) {
-    return (
-      <section className="up-next" ref={setNodeRef}>
-        <h2>Up Next</h2>
-        <p className={`up-next-empty${isOver ? ' is-drag-over' : ''}`}>
-          Drag tasks here to line up what you'll do next.
-        </p>
-      </section>
-    )
-  }
 
   return (
     <section className="up-next" ref={setNodeRef}>
       <h2>Up Next</h2>
-      <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
-        <ol className="up-next-list">
-          {tasks.map((task) => (
-            <UpNextItem
-              key={task.id}
-              task={task}
-              projectsById={projectsById}
-              sectionsById={sectionsById}
-              isCompleting={completingIds.has(task.id)}
-              onComplete={onComplete}
-              onRemove={onRemove}
-              hasComments={taskIdsWithComments.has(task.id)}
-              openInDesktopApp={openInDesktopApp}
-            />
-          ))}
-        </ol>
-      </SortableContext>
+      {tasks.length === 0 ? (
+        <p className={`up-next-empty${isOver ? ' is-drag-over' : ''}`}>Drag tasks here to line up what you'll do next.</p>
+      ) : (
+        <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+          <ol className="up-next-list">
+            {tasks.map((task) => (
+              <UpNextItem
+                key={task.id}
+                task={task}
+                projectsById={projectsById}
+                sectionsById={sectionsById}
+                isCompleting={completingIds.has(task.id)}
+                onComplete={onComplete}
+                onRemove={onRemove}
+                hasComments={taskIdsWithComments.has(task.id)}
+                openInDesktopApp={openInDesktopApp}
+                isCoarsePointer={isCoarsePointer}
+              />
+            ))}
+          </ol>
+        </SortableContext>
+      )}
     </section>
   )
 }

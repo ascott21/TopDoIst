@@ -1,5 +1,5 @@
-// Todoist's own priority flag colors: p1 red, p2 orange, p3 blue, p4 (the
-// default/no-priority level) gets an empty outline rather than a fill.
+// Todoist's priority colors, keyed by API priority (4 = P1). P4, the
+// default, is an outline rather than a fill.
 const PRIORITY_META = {
   4: { label: 'Priority 1', color: '#d1453b', filled: true },
   3: { label: 'Priority 2', color: '#eb8909', filled: true },

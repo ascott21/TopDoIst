@@ -2,15 +2,23 @@ import { useDraggable } from '@dnd-kit/core'
 import PriorityDot from './PriorityDot'
 import CompleteCheckbox from './CompleteCheckbox'
 import TaskIndicators from './TaskIndicators'
-import { taskUrl, formatProjectMeta, formatDue, isOverdue } from '../lib/taskDisplay'
-import { useCoarsePointer } from '../lib/useCoarsePointer'
+import TaskLink from './TaskLink'
+import { formatProjectMeta, formatDue, isOverdue } from '../lib/taskDisplay'
 
-function TaskRow({ task, breakdown, projectsById, sectionsById, isCompleting, onComplete, hasComments, openInDesktopApp }) {
-  // Deliberately not sortable — this list is algorithmically ranked, not
-  // manually reorderable. Dragging one out just needs a source; where it's
-  // dropped (Up Next) is what makes it sortable.
+function TaskRow({
+  task,
+  breakdown,
+  projectsById,
+  sectionsById,
+  isCompleting,
+  onComplete,
+  hasComments,
+  openInDesktopApp,
+  isCoarsePointer,
+}) {
+  // Draggable but not sortable: this list's order comes from the scores, so
+  // a row can only be dragged out to Up Next.
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: task.id })
-  const isCoarse = useCoarsePointer()
   const dragProps = { ...attributes, ...listeners }
 
   const title = [
@@ -23,24 +31,22 @@ function TaskRow({ task, breakdown, projectsById, sectionsById, isCompleting, on
   return (
     <tr
       ref={setNodeRef}
-      className={`${isDragging ? 'is-dragging' : ''} ${!isCoarse ? 'row-draggable' : ''}`}
+      className={`${isDragging ? 'is-dragging' : ''} ${isCoarsePointer ? '' : 'row-draggable'}`}
       title={title}
-      // On a mouse/trackpad, the whole row can start a drag (a quick click
-      // still reaches the link/checkbox — see CompleteCheckbox). On touch,
-      // keep the drag zone confined to the checkbox handle so a scroll
-      // gesture starting anywhere else on the row isn't hijacked.
-      {...(isCoarse ? {} : dragProps)}
+      // On a mouse, the whole row starts a drag (a quick click still reaches
+      // the link and checkbox). On touch, only the checkbox does, so a scroll
+      // that starts on the row isn't taken for a drag.
+      {...(isCoarsePointer ? {} : dragProps)}
     >
       <td className="col-check">
-        <CompleteCheckbox checked={isCompleting} onComplete={() => onComplete(task.id)} dragProps={isCoarse ? dragProps : {}} />
+        <CompleteCheckbox
+          checked={isCompleting}
+          onComplete={() => onComplete(task.id)}
+          dragProps={isCoarsePointer ? dragProps : {}}
+        />
       </td>
       <td className="col-task">
-        {/* A todoist:// link isn't a real page to load in a new tab — just
-            a handoff to the desktop app — so target/rel only apply to the
-            normal web link. */}
-        <a href={taskUrl(task, { desktopApp: openInDesktopApp })} {...(openInDesktopApp ? {} : { target: '_blank', rel: 'noreferrer' })}>
-          {task.content}
-        </a>
+        <TaskLink task={task} openInDesktopApp={openInDesktopApp} />
         {task.labels?.length > 0 && (
           <span className="labels">
             {task.labels.map((l) => (
@@ -70,6 +76,7 @@ export default function TaskTable({
   taskIdsWithComments,
   emptyMessage,
   openInDesktopApp,
+  isCoarsePointer,
 }) {
   if (ranked.length === 0) {
     return <p className="empty">{emptyMessage ?? "No tasks left in the list — everything's either done or in Up Next."}</p>
@@ -96,6 +103,7 @@ export default function TaskTable({
             onComplete={onComplete}
             hasComments={taskIdsWithComments.has(task.id)}
             openInDesktopApp={openInDesktopApp}
+            isCoarsePointer={isCoarsePointer}
           />
         ))}
       </tbody>

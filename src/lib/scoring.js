@@ -1,22 +1,15 @@
-// Scoring engine for ranking Todoist tasks.
+// Scoring engine for ranking Todoist tasks. The full formula is walked
+// through in the README's "How scoring works" section.
 //
-// Every task gets a composite score built from three independent signals:
-//   - priority: Todoist's own P1-P4 flag, weighted so each tier is worth
-//     twice the one below it
-//   - urgency: how close (or overdue) the due date is, down to the hour —
-//     due today outranks due tomorrow, and earlier in the day outranks
-//     later in the day, because it's driven by precise time remaining
-//     rather than whole-day buckets
-//   - staleness: how long the task has sat untouched, so old tasks don't
-//     get buried forever just because they lack a due date
-// Label bonuses are added on top so you can hand-tag a "quick win" or
-// "urgent" task to bump it in the list without changing its due date.
-//
-// Each contribution is normalized to roughly 0-1 before weighting, so the
-// weights themselves (see DEFAULT_WEIGHTS) are meaningful dials rather than
-// magic numbers tied to Todoist's internal scale.
+// Each task's score combines three signals, each normalized to roughly 0-1
+// so the weights are meaningful dials rather than numbers tied to Todoist's
+// internal scales:
+//   - priority: Todoist's P1-P4 flag
+//   - due: how close (or overdue) the due date is, to the hour
+//   - staleness: how long ago the task was created
+// Label bonuses are then added on top as flat points.
 
-import { dueInstant } from './dueDate'
+import { MS_PER_DAY, MS_PER_HOUR, dueInstant } from './dueDate'
 
 export const DEFAULT_WEIGHTS = {
   priority: 1,
@@ -24,81 +17,60 @@ export const DEFAULT_WEIGHTS = {
   staleness: 0,
 }
 
-// label (lowercased) -> flat bonus added to the final 0-100 score
+// Lowercased label -> flat points added to the final score.
 export const DEFAULT_LABEL_BONUSES = {
   long: 5,
 }
 
-const MS_PER_DAY = 1000 * 60 * 60 * 24
-const MS_PER_HOUR = 1000 * 60 * 60
-const HOURS_PER_DAY = 24
-const WEEK_HOURS = HOURS_PER_DAY * 7
+// Each weighted signal is scaled by this, so a signal at 1.0 with weight 1
+// contributes 20 points.
+const POINTS_PER_WEIGHT = 20
 
-function daysBetween(a, b) {
-  return (b.getTime() - a.getTime()) / MS_PER_DAY
-}
+const HOURS_PER_WEEK = 24 * 7
+const OVERDUE_HOURS_TO_MAX = 24 * 14
+const STALENESS_DAYS_TO_MAX = 30
 
-// Todoist REST API priority is 1 (normal / P4) .. 4 (urgent / P1). Each
-// tier is worth double the one below it (P4=1, P3=2, P2=4, P1=8),
-// normalized against the top so P1 still maxes out at 1.0 — same ceiling
-// as before, just a different curve between the tiers. P4 no longer
-// contributes exactly zero, since "zero" isn't expressible in a pure
-// doubling ratio; it now contributes a small nonzero share (1/8th of P1's).
+// Todoist's API priority runs 1 (P4) to 4 (P1). Each tier is worth double
+// the one below: P4 = 0.125, P3 = 0.25, P2 = 0.5, P1 = 1.
 function priorityScore(task) {
-  const p = task.priority ?? 1
-  const rank = p - 1 // 0 for P4 ... 3 for P1
-  return Math.pow(2, rank) / 8
+  const rank = (task.priority ?? 1) - 1
+  return 2 ** rank / 8
 }
 
-// Returns a value roughly in [0, 2]. Overdue tasks climb above 1 the longer
-// they've been overdue (capped at 2, reached after ~14 days); not-yet-due
-// tasks decay from 1.0 (due right now) down to 0.3 (due in exactly 7 days)
-// along one continuous line, then keep decaying slowly beyond that, floored
-// at 0.1. Tasks with no due date get a true zero — no due date means no due
-// date urgency at all, and staleness is what surfaces them instead.
-//
-// Driven by precise hours until due (not whole-day buckets), using
-// Todoist's actual due time when it has one, or end-of-day when it
-// doesn't (see dueInstant) — so a task due today always outranks one due
-// tomorrow, and earlier-in-the-day outranks later-in-the-day, at any
-// distance out.
+// Roughly 0-2, and the only signal that can pass 1, so overdue tasks can
+// dominate the ranking:
+//   - overdue: 1.0 rising to 2.0 at 14 days overdue
+//   - due within a week: 1.0 (due now) falling linearly to 0.3 (due in 7 days)
+//   - further out: keeps falling 0.01 a day, floored at 0.1
+//   - no due date: 0
 function dueScore(task, now) {
   const due = dueInstant(task.due)
   if (!due) return 0
 
   const hoursUntilDue = (due.getTime() - now.getTime()) / MS_PER_HOUR
-
   if (hoursUntilDue < 0) {
-    const hoursOverdue = -hoursUntilDue
-    return Math.min(1 + hoursOverdue / (14 * HOURS_PER_DAY), 2)
+    return Math.min(1 - hoursUntilDue / OVERDUE_HOURS_TO_MAX, 2)
   }
-  if (hoursUntilDue <= WEEK_HOURS) {
-    return 1 - (hoursUntilDue / WEEK_HOURS) * 0.7
+  if (hoursUntilDue <= HOURS_PER_WEEK) {
+    return 1 - (hoursUntilDue / HOURS_PER_WEEK) * 0.7
   }
-  // further out: keep decaying slowly, floor at 0.1
-  const daysOut = hoursUntilDue / HOURS_PER_DAY
-  return Math.max(0.3 - (daysOut - 7) * 0.01, 0.1)
+  const daysPastAWeek = (hoursUntilDue - HOURS_PER_WEEK) / 24
+  return Math.max(0.3 - daysPastAWeek * 0.01, 0.1)
 }
 
-// Returns a value in [0, 1] that grows with the task's age, capped at 30
-// days. Purely additive nudge for tasks that have no due date and would
-// otherwise never bubble up.
-//
-// The creation-date field name has moved around across Todoist API
-// versions (created_at / date_added / added_at), so check all of them
-// rather than assuming one.
+// 0-1, reaching 1 once a task is 30 days old. The creation-date field has
+// had different names across Todoist API versions, so all are checked.
 function stalenessScore(task, now) {
   const createdRaw = task.created_at ?? task.date_added ?? task.added_at
   if (!createdRaw) return 0
   const created = new Date(createdRaw)
   if (Number.isNaN(created.getTime())) return 0
-  const days = Math.max(daysBetween(created, now), 0)
-  return Math.min(days / 30, 1)
+  const daysOld = Math.max((now.getTime() - created.getTime()) / MS_PER_DAY, 0)
+  return Math.min(daysOld / STALENESS_DAYS_TO_MAX, 1)
 }
 
-// Object.hasOwn rather than a plain lookup, so a label that happens to be
-// named like a built-in object property ("constructor", "toString") doesn't
-// pull in that property instead of a number.
+// Object.hasOwn rather than a plain lookup, so a label named like a
+// built-in object property ("constructor", "toString") isn't read as one.
 function labelBonus(task, labelBonuses) {
   if (!task.labels?.length) return 0
   return task.labels.reduce((sum, label) => {
@@ -107,38 +79,40 @@ function labelBonus(task, labelBonuses) {
   }, 0)
 }
 
-// Scores a single task. Returns { total, breakdown } where breakdown shows
-// each component's raw and weighted contribution, useful for a tooltip.
-export function scoreTask(task, { weights = DEFAULT_WEIGHTS, labelBonuses = DEFAULT_LABEL_BONUSES, now = new Date() } = {}) {
-  const priority = priorityScore(task)
-  const due = dueScore(task, now)
-  const staleness = stalenessScore(task, now)
-  const labels = labelBonus(task, labelBonuses)
+function roundToTenth(n) {
+  return Math.round(n * 10) / 10
+}
 
-  // Weighted signals scaled to a 0-100-ish range, plus flat label bonuses.
-  const weighted = {
-    priority: priority * weights.priority * 20,
-    due: due * weights.due * 20,
-    staleness: staleness * weights.staleness * 20,
-    labels,
+// Returns { total, breakdown }, where breakdown holds each signal's raw value
+// and weighted points, for the ranked table's tooltip.
+export function scoreTask(task, { weights = DEFAULT_WEIGHTS, labelBonuses = DEFAULT_LABEL_BONUSES, now = new Date() } = {}) {
+  const raw = {
+    priority: priorityScore(task),
+    due: dueScore(task, now),
+    staleness: stalenessScore(task, now),
+  }
+  const points = {
+    priority: raw.priority * weights.priority * POINTS_PER_WEIGHT,
+    due: raw.due * weights.due * POINTS_PER_WEIGHT,
+    staleness: raw.staleness * weights.staleness * POINTS_PER_WEIGHT,
+    labels: labelBonus(task, labelBonuses),
   }
 
-  const total = weighted.priority + weighted.due + weighted.staleness + weighted.labels
-
   return {
-    total: Math.round(total * 10) / 10,
+    total: roundToTenth(points.priority + points.due + points.staleness + points.labels),
     breakdown: {
-      priority: { raw: priority, weighted: Math.round(weighted.priority * 10) / 10 },
-      due: { raw: due, weighted: Math.round(weighted.due * 10) / 10 },
-      staleness: { raw: staleness, weighted: Math.round(weighted.staleness * 10) / 10 },
-      labels: { weighted: Math.round(weighted.labels * 10) / 10 },
+      priority: { raw: raw.priority, weighted: roundToTenth(points.priority) },
+      due: { raw: raw.due, weighted: roundToTenth(points.due) },
+      staleness: { raw: raw.staleness, weighted: roundToTenth(points.staleness) },
+      labels: { weighted: roundToTenth(points.labels) },
     },
   }
 }
 
-// Scores and sorts a list of tasks, highest score first.
-export function rankTasks(tasks, options = {}) {
+// Scores and sorts tasks, highest first. `now` is fixed once for the whole
+// list so every task is scored against the same moment.
+export function rankTasks(tasks, { now = new Date(), ...options } = {}) {
   return tasks
-    .map((task) => ({ task, ...scoreTask(task, options) }))
+    .map((task) => ({ task, ...scoreTask(task, { ...options, now }) }))
     .sort((a, b) => b.total - a.total)
 }

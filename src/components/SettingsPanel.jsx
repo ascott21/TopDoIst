@@ -7,25 +7,20 @@ import { ASSIGNMENT_MODE_OPTIONS } from '../lib/assignment'
 export default function SettingsPanel({
   open,
   onClose,
-  weights,
-  onWeightsChange,
-  onResetWeights,
-  projects,
-  isProjectSelected,
-  allProjectsSelected,
-  onToggleProject,
-  onToggleAllProjects,
   assignmentMode,
   onAssignmentModeChange,
+  projects,
+  selectedProjectIds,
+  onSelectedProjectIdsChange,
+  weights,
+  onWeightsChange,
   labelBonuses,
   availableLabels,
-  onSetLabelBonus,
-  onRemoveLabelBonus,
-  onResetLabelBonuses,
+  onLabelBonusesChange,
   openInDesktopApp,
   onOpenInDesktopAppChange,
 }) {
-  // Close on Escape, for anyone who doesn't want to reach for the mouse.
+  // Close on Escape.
   useEffect(() => {
     if (!open) return
     function handleKey(e) {
@@ -65,26 +60,18 @@ export default function SettingsPanel({
 
         <section className="settings-section">
           <h3>Project</h3>
-          <ProjectFilter
-            projects={projects}
-            isSelected={isProjectSelected}
-            allSelected={allProjectsSelected}
-            onToggleProject={onToggleProject}
-            onToggleAll={onToggleAllProjects}
-          />
+          <ProjectFilter projects={projects} selectedIds={selectedProjectIds} onChange={onSelectedProjectIdsChange} />
         </section>
 
         <section className="settings-section">
-          <WeightControls weights={weights} onChange={onWeightsChange} onReset={onResetWeights} />
+          <WeightControls weights={weights} onChange={onWeightsChange} />
         </section>
 
         <section className="settings-section">
           <LabelBonusSettings
             labelBonuses={labelBonuses}
             availableLabels={availableLabels}
-            onSetBonus={onSetLabelBonus}
-            onRemoveBonus={onRemoveLabelBonus}
-            onReset={onResetLabelBonuses}
+            onChange={onLabelBonusesChange}
           />
         </section>
 
