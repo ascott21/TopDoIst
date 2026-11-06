@@ -99,9 +99,8 @@ was used.
 
 Unlike the four signals above, label bonuses are a flat addition to the
 final score rather than a normalized/weighted component — they don't scale
-with the weight sliders. One is pre-configured: `long` adds 5 points.
-Fully editable from Settings (see below) — add your own, change the
-points on this one, or remove it entirely.
+with the weight sliders. None are set up out of the box; add your own
+from Settings (see below).
 
 ### Putting it together
 
@@ -216,8 +215,8 @@ The gear icon opens a settings panel with:
   score and by how much. Type a label name (your own Todoist labels are
   offered as suggestions) and a point value, then Add; existing ones are
   editable in place, or removable. Points can be negative, to push tasks
-  with that label down instead of up. "Reset to defaults" brings back just
-  `long`.
+  with that label down instead of up. "Reset to defaults" clears the list
+  (there are no default label bonuses).
 - **Links** — "Open tasks in the Todoist desktop app" switches every task
   title from a `https://todoist.com/...` link to a `todoist://task?id=...`
   one, which the desktop (and mobile) app registers itself as the handler

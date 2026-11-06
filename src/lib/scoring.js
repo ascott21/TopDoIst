@@ -34,10 +34,9 @@ export const DEFAULT_WEIGHTS = {
 // duration, whichever way the weight points.
 export const DEFAULT_DEFAULT_DURATION_MINUTES = null
 
-// label (lowercased) -> flat bonus added to the final 0-100 score
-export const DEFAULT_LABEL_BONUSES = {
-  long: 5,
-}
+// label (lowercased) -> flat bonus added to the final 0-100 score. None
+// out of the box — the Duration weight covers what a "long" label used to.
+export const DEFAULT_LABEL_BONUSES = {}
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24
 const MS_PER_HOUR = 1000 * 60 * 60
