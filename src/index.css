@@ -607,3 +607,47 @@ select {
   padding: 2rem;
   text-align: center;
 }
+
+/* Default duration (Settings, under the weight sliders) */
+.default-duration {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  margin: 0.9rem 0 0.25rem;
+}
+
+.default-duration input {
+  width: 5rem;
+}
+
+/* Duration chip on each task, and the Up Next total */
+.task-duration {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.up-next-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin: 0 0 0.75rem;
+}
+
+.up-next .up-next-header h2 {
+  margin: 0;
+}
+
+.up-next-total {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}

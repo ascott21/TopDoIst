@@ -12,13 +12,13 @@ both because that's the point of using the app for anything beyond looking.
 
 ## How scoring works
 
-Each task's score is a weighted combination of three signals, each first
+Each task's score is a weighted combination of four signals, each first
 normalized to its own small range and then scaled by its weight × 20. With
-the default weights (priority 1, due 2, staleness 0), each signal can
-contribute up to roughly 20 and 40 points respectively, plus whatever
-label bonuses apply. Staleness defaults to off (0) but is there if you
-want it — turn its slider up in Settings to start factoring in how long a
-task has sat idle. The exact formula lives in `src/lib/scoring.js`; this
+the default weights (priority 1, due 2, staleness 0, duration 0), each
+signal can contribute up to roughly 20 and 40 points respectively, plus
+whatever label bonuses apply. Staleness and duration default to off (0)
+but are there if you want them — turn their sliders in Settings to start
+factoring in how long a task has sat idle, or how long it'll take. The exact formula lives in `src/lib/scoring.js`; this
 just walks through it.
 
 ### Priority
@@ -71,9 +71,33 @@ It grows linearly and caps out at 1.0 once a task is 30+ days old. A
 brand-new task contributes essentially nothing here; a month-old (or older)
 one contributes its full share.
 
+### Duration
+
+How long the task is estimated to take, from Todoist's own duration field.
+Longer always means a higher raw score, on a log curve so each doubling
+adds about the same amount instead of every extra minute counting
+equally:
+
+```
+durationScore = log2(1 + min(minutes, 240) / 15) / log2(17)
+```
+
+That's 0 for no time at all, about 0.25 at 15m, 0.39 at 30m, 0.57 at 1h,
+0.78 at 2h, and a full 1.0 from 4 hours up. A duration set in days counts
+as one 8-hour workday per day, so it's always at the cap.
+
+This is the one weight that can go **negative** (its slider runs -3 to
+3). Positive pushes long tasks up the list; negative pushes them down, so
+quick tasks float to the top instead.
+
+A task with no duration scores 0 here, whichever way the weight points —
+unless you set a **default duration** in Settings, in which case it's
+scored as if it had that duration. The score tooltip says when a default
+was used.
+
 ### Label bonuses
 
-Unlike the three signals above, label bonuses are a flat addition to the
+Unlike the four signals above, label bonuses are a flat addition to the
 final score rather than a normalized/weighted component — they don't scale
 with the weight sliders. One is pre-configured: `long` adds 5 points.
 Fully editable from Settings (see below) — add your own, change the
@@ -85,6 +109,7 @@ points on this one, or remove it entirely.
 total = (priorityScore  × priorityWeight  × 20)
       + (dueScore       × dueWeight       × 20)
       + (stalenessScore × stalenessWeight × 20)
+      + (durationScore  × durationWeight  × 20)
       + labelBonuses
 ```
 
@@ -134,6 +159,15 @@ never fails because of it, so on the rare chance the label write fails,
 the task just falls back to reappearing in Up Next like it would have
 before.
 
+### Time queued
+
+The Up Next header adds up the durations of everything in it, e.g.
+"≈ 2h 45m queued", so you can tell when you've lined up more than fits in
+your day. Tasks without a duration of their own are counted at the
+default duration when one is set ("· 2 at default 30m"), or left out and
+counted as "unestimated" when it isn't. The total doesn't show until at
+least one task in Up Next has a duration (its own or the default).
+
 ## Live updates
 
 The app quietly re-fetches from Todoist every 15 seconds, so a task added
@@ -170,9 +204,14 @@ The gear icon opens a settings panel with:
   an "All projects" master checkbox too. This applies to Up Next as well
   as the ranked table — a task in an unchecked project stays hidden even
   if it's labeled Up Next.
-- **Weights** — sliders for the three scoring signals described above.
-  Changes re-rank instantly using the tasks already loaded (no need to
-  refetch), and are saved in this browser like the other settings.
+- **Weights** — sliders for the four scoring signals described above
+  (Duration runs negative to positive; the rest start at zero). Changes
+  re-rank instantly using the tasks already loaded (no need to refetch),
+  and are saved in this browser like the other settings.
+- **Default duration** — minutes to assume for any task with no duration
+  set in Todoist, used by the Duration weight and the Up Next total.
+  Blank (the default) means none. It never shows up as a task's own
+  duration and never gets written back to Todoist.
 - **Label bonuses** — add, edit, or remove which labels affect a task's
   score and by how much. Type a label name (your own Todoist labels are
   offered as suggestions) and a point value, then Add; existing ones are
@@ -191,7 +230,8 @@ The gear icon opens a settings panel with:
   to detect whether a handler is registered before you click.
 
 Each task's project (and section, if it's in one) shows in small type
-under its title. A small document icon there means the task has a
+under its title, followed by its duration with a small clock icon (e.g. "30m", or "2d" for one
+set in days) when it has one in Todoist. A small document icon there means the task has a
 description; a speech-bubble icon means it has comments — no counts, just
 a nudge that there's more worth a look before you start it. The
 description icon is always current (it comes free with every task); the

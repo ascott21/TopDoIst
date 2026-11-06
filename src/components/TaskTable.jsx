@@ -2,6 +2,8 @@ import { useDraggable } from '@dnd-kit/core'
 import PriorityDot from './PriorityDot'
 import CompleteCheckbox from './CompleteCheckbox'
 import TaskIndicators from './TaskIndicators'
+import DurationChip from './DurationChip'
+import { formatMinutes } from '../lib/duration'
 import { taskUrl, formatProjectMeta, formatDue, isOverdue } from '../lib/taskDisplay'
 import { useCoarsePointer } from '../lib/useCoarsePointer'
 
@@ -13,10 +15,14 @@ function TaskRow({ task, breakdown, projectsById, sectionsById, isCompleting, on
   const isCoarse = useCoarsePointer()
   const dragProps = { ...attributes, ...listeners }
 
+  const { minutes: durationMinutes, isDefault: durationIsDefault } = breakdown.duration
+  const durationNote =
+    durationMinutes === null ? ' (no duration)' : ` (${formatMinutes(durationMinutes)}${durationIsDefault ? ', default' : ''})`
   const title = [
     `priority: ${breakdown.priority.weighted}`,
     `due: ${breakdown.due.weighted}`,
     `staleness: ${breakdown.staleness.weighted}`,
+    `duration: ${breakdown.duration.weighted}${durationNote}`,
     `labels: ${breakdown.labels.weighted}`,
   ].join('\n')
 
@@ -53,6 +59,7 @@ function TaskRow({ task, breakdown, projectsById, sectionsById, isCompleting, on
         <div className="task-meta">
           <PriorityDot priority={task.priority} />
           <span className="task-meta-project">{formatProjectMeta(task, projectsById, sectionsById)}</span>
+          <DurationChip task={task} />
           <TaskIndicators hasDescription={!!task.description?.trim()} hasComments={hasComments} />
         </div>
       </td>

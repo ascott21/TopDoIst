@@ -10,6 +10,8 @@ export default function SettingsPanel({
   weights,
   onWeightsChange,
   onResetWeights,
+  defaultDurationMinutes,
+  onDefaultDurationChange,
   projects,
   isProjectSelected,
   allProjectsSelected,
@@ -75,7 +77,13 @@ export default function SettingsPanel({
         </section>
 
         <section className="settings-section">
-          <WeightControls weights={weights} onChange={onWeightsChange} onReset={onResetWeights} />
+          <WeightControls
+            weights={weights}
+            onChange={onWeightsChange}
+            onReset={onResetWeights}
+            defaultDurationMinutes={defaultDurationMinutes}
+            onDefaultDurationChange={onDefaultDurationChange}
+          />
         </section>
 
         <section className="settings-section">

@@ -4,6 +4,8 @@ import { CSS } from '@dnd-kit/utilities'
 import CompleteCheckbox from './CompleteCheckbox'
 import PriorityDot from './PriorityDot'
 import TaskIndicators from './TaskIndicators'
+import DurationChip from './DurationChip'
+import { effectiveDurationMinutes, formatMinutes } from '../lib/duration'
 import { taskUrl, formatProjectMeta, formatDue, isOverdue } from '../lib/taskDisplay'
 import { useCoarsePointer } from '../lib/useCoarsePointer'
 
@@ -43,6 +45,7 @@ function UpNextItem({ task, projectsById, sectionsById, isCompleting, onComplete
             // when it unexpectedly reappears.
             <span className={isOverdue(task.due) ? 'due-overdue' : undefined}>· {formatDue(task.due)}</span>
           )}
+          <DurationChip task={task} />
           <TaskIndicators hasDescription={!!task.description?.trim()} hasComments={hasComments} />
         </span>
       </span>
@@ -59,6 +62,33 @@ function UpNextItem({ task, projectsById, sectionsById, isCompleting, onComplete
   )
 }
 
+// "≈ 2h 45m queued", plus a note on any tasks that aren't fully counted:
+// how many fell back to the default duration, or — with no default set —
+// how many have no duration and so add nothing to the total. Null when
+// there's nothing to add up at all.
+function formatUpNextTotal(tasks, defaultDurationMinutes) {
+  let totalMinutes = 0
+  let counted = 0
+  let usingDefault = 0
+  let unestimated = 0
+  for (const task of tasks) {
+    const { minutes, isDefault } = effectiveDurationMinutes(task, defaultDurationMinutes)
+    if (minutes === null) {
+      unestimated++
+      continue
+    }
+    totalMinutes += minutes
+    counted++
+    if (isDefault) usingDefault++
+  }
+  if (counted === 0) return null
+
+  const notes = []
+  if (usingDefault > 0) notes.push(`${usingDefault} at default ${formatMinutes(defaultDurationMinutes)}`)
+  if (unestimated > 0) notes.push(`${unestimated} unestimated`)
+  return `≈ ${formatMinutes(totalMinutes)} queued${notes.length ? ` · ${notes.join(', ')}` : ''}`
+}
+
 export default function UpNext({
   tasks,
   projectsById,
@@ -68,6 +98,7 @@ export default function UpNext({
   onRemove,
   taskIdsWithComments,
   openInDesktopApp,
+  defaultDurationMinutes,
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: UP_NEXT_DROPPABLE_ID })
 
@@ -82,9 +113,14 @@ export default function UpNext({
     )
   }
 
+  const total = formatUpNextTotal(tasks, defaultDurationMinutes)
+
   return (
     <section className="up-next" ref={setNodeRef}>
-      <h2>Up Next</h2>
+      <div className="up-next-header">
+        <h2>Up Next</h2>
+        {total && <span className="up-next-total">{total}</span>}
+      </div>
       <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
         <ol className="up-next-list">
           {tasks.map((task) => (

@@ -14,7 +14,7 @@ import {
   storeToken,
   updateTaskLabels,
 } from './api/todoist'
-import { DEFAULT_WEIGHTS, DEFAULT_LABEL_BONUSES, rankTasks } from './lib/scoring'
+import { DEFAULT_WEIGHTS, DEFAULT_LABEL_BONUSES, DEFAULT_DEFAULT_DURATION_MINUTES, rankTasks } from './lib/scoring'
 import { DEFAULT_ASSIGNMENT_MODE, passesAssignmentFilter } from './lib/assignment'
 import { UP_NEXT_LABEL, hasUpNextLabel, withLabelAdded, withLabelRemoved } from './lib/upNextLabel'
 import TokenGate from './components/TokenGate'
@@ -31,6 +31,7 @@ const LABEL_BONUSES_KEY = 'topdoist:labelBonuses'
 const FOCUS_MODE_KEY = 'topdoist:focusMode'
 const OPEN_IN_DESKTOP_APP_KEY = 'topdoist:openInDesktopApp'
 const WEIGHTS_KEY = 'topdoist:weights'
+const DEFAULT_DURATION_KEY = 'topdoist:defaultDurationMinutes'
 const POLL_INTERVAL_MS = 15000
 
 // closestCenter alone always reports the nearest droppable however far away
@@ -121,6 +122,16 @@ function loadWeights() {
   }
 }
 
+// Stored as a number of minutes, or absent for "no default".
+function loadDefaultDurationMinutes() {
+  try {
+    const minutes = parseFloat(localStorage.getItem(DEFAULT_DURATION_KEY))
+    return Number.isFinite(minutes) && minutes > 0 ? minutes : DEFAULT_DEFAULT_DURATION_MINUTES
+  } catch {
+    return DEFAULT_DEFAULT_DURATION_MINUTES
+  }
+}
+
 function loadFocusMode() {
   try {
     return localStorage.getItem(FOCUS_MODE_KEY) === 'true'
@@ -164,6 +175,7 @@ export default function App() {
   const [currentUserId, setCurrentUserId] = useState(null)
   const [weights, setWeights] = useState(loadWeights)
   const [labelBonuses, setLabelBonuses] = useState(loadLabelBonuses)
+  const [defaultDurationMinutes, setDefaultDurationMinutes] = useState(loadDefaultDurationMinutes)
   const [selectedProjectIds, setSelectedProjectIds] = useState(loadSelectedProjectIds)
   const [assignmentMode, setAssignmentMode] = useState(loadAssignmentMode)
   const [focusMode, setFocusMode] = useState(loadFocusMode)
@@ -242,6 +254,14 @@ export default function App() {
       // ignore storage failures
     }
   }, [weights])
+  useEffect(() => {
+    try {
+      if (defaultDurationMinutes === null) localStorage.removeItem(DEFAULT_DURATION_KEY)
+      else localStorage.setItem(DEFAULT_DURATION_KEY, String(defaultDurationMinutes))
+    } catch {
+      // ignore storage failures
+    }
+  }, [defaultDurationMinutes])
   useEffect(() => {
     try {
       localStorage.setItem(FOCUS_MODE_KEY, String(focusMode))
@@ -373,10 +393,10 @@ export default function App() {
     const orderedIds = new Set(ordered.map((t) => t.id))
     const unordered = rankTasks(
       labeledUpNextTasks.filter((t) => !orderedIds.has(t.id)),
-      { weights, labelBonuses },
+      { weights, labelBonuses, defaultDurationMinutes },
     ).map((r) => r.task)
     return [...ordered, ...unordered]
-  }, [labeledUpNextTasks, upNextOrder, tasksById, weights, labelBonuses])
+  }, [labeledUpNextTasks, upNextOrder, tasksById, weights, labelBonuses, defaultDurationMinutes])
 
   const filteredTasks = useMemo(() => {
     return tasks.filter((t) => {
@@ -395,8 +415,8 @@ export default function App() {
   )
 
   const ranked = useMemo(
-    () => rankTasks(searchedTasks, { weights, labelBonuses }),
-    [searchedTasks, weights, labelBonuses],
+    () => rankTasks(searchedTasks, { weights, labelBonuses, defaultDurationMinutes }),
+    [searchedTasks, weights, labelBonuses, defaultDurationMinutes],
   )
 
   // Purely local — where a task sits within Up Next isn't something
@@ -630,6 +650,7 @@ export default function App() {
           onRemove={handleRemoveFromUpNext}
           taskIdsWithComments={taskIdsWithComments}
           openInDesktopApp={openInDesktopApp}
+          defaultDurationMinutes={defaultDurationMinutes}
         />
 
         {!focusMode && (
@@ -675,6 +696,8 @@ export default function App() {
         weights={weights}
         onWeightsChange={setWeights}
         onResetWeights={() => setWeights(DEFAULT_WEIGHTS)}
+        defaultDurationMinutes={defaultDurationMinutes}
+        onDefaultDurationChange={setDefaultDurationMinutes}
         projects={projects}
         isProjectSelected={isProjectSelected}
         allProjectsSelected={allProjectsSelected}

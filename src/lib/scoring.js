@@ -1,6 +1,6 @@
 // Scoring engine for ranking Todoist tasks.
 //
-// Every task gets a composite score built from three independent signals:
+// Every task gets a composite score built from four independent signals:
 //   - priority: Todoist's own P1-P4 flag, weighted so each tier is worth
 //     twice the one below it
 //   - urgency: how close (or overdue) the due date is, down to the hour —
@@ -9,6 +9,9 @@
 //     rather than whole-day buckets
 //   - staleness: how long the task has sat untouched, so old tasks don't
 //     get buried forever just because they lack a due date
+//   - duration: how long the task is estimated to take (Todoist's own
+//     duration field). More time = a bigger raw score; the weight can be
+//     negative, so the same signal pushes long tasks up or down
 // Label bonuses are added on top so you can hand-tag a "quick win" or
 // "urgent" task to bump it in the list without changing its due date.
 //
@@ -17,12 +20,19 @@
 // magic numbers tied to Todoist's internal scale.
 
 import { dueInstant } from './dueDate'
+import { effectiveDurationMinutes } from './duration'
 
 export const DEFAULT_WEIGHTS = {
   priority: 1,
   due: 2,
   staleness: 0,
+  duration: 0,
 }
+
+// Minutes assumed for a task with no duration of its own, for scoring and
+// the Up Next total. null = no default: such a task scores zero on
+// duration, whichever way the weight points.
+export const DEFAULT_DEFAULT_DURATION_MINUTES = null
 
 // label (lowercased) -> flat bonus added to the final 0-100 score
 export const DEFAULT_LABEL_BONUSES = {
@@ -96,6 +106,21 @@ function stalenessScore(task, now) {
   return Math.min(days / 30, 1)
 }
 
+// Returns a value in [0, 1] that grows with the task's duration, on a log
+// curve so each doubling adds roughly the same amount rather than every
+// extra minute counting equally: 0 for no time at all, ~0.25 at 15m,
+// ~0.39 at 30m, ~0.57 at 1h, ~0.78 at 2h, capping at 1.0 from 4h on.
+// Higher always means longer — whether that helps or hurts a task's rank
+// is up to the (possibly negative) weight. A task with no duration, and
+// no default configured, gets 0.
+const DURATION_CAP_MINUTES = 240
+const DURATION_CURVE_MINUTES = 15
+function durationScore(minutes) {
+  if (minutes === null) return 0
+  const capped = Math.min(minutes, DURATION_CAP_MINUTES)
+  return Math.log2(1 + capped / DURATION_CURVE_MINUTES) / Math.log2(1 + DURATION_CAP_MINUTES / DURATION_CURVE_MINUTES)
+}
+
 // Object.hasOwn rather than a plain lookup, so a label that happens to be
 // named like a built-in object property ("constructor", "toString") doesn't
 // pull in that property instead of a number.
@@ -109,10 +134,20 @@ function labelBonus(task, labelBonuses) {
 
 // Scores a single task. Returns { total, breakdown } where breakdown shows
 // each component's raw and weighted contribution, useful for a tooltip.
-export function scoreTask(task, { weights = DEFAULT_WEIGHTS, labelBonuses = DEFAULT_LABEL_BONUSES, now = new Date() } = {}) {
+export function scoreTask(
+  task,
+  {
+    weights = DEFAULT_WEIGHTS,
+    labelBonuses = DEFAULT_LABEL_BONUSES,
+    defaultDurationMinutes = DEFAULT_DEFAULT_DURATION_MINUTES,
+    now = new Date(),
+  } = {},
+) {
   const priority = priorityScore(task)
   const due = dueScore(task, now)
   const staleness = stalenessScore(task, now)
+  const durationInfo = effectiveDurationMinutes(task, defaultDurationMinutes)
+  const duration = durationScore(durationInfo.minutes)
   const labels = labelBonus(task, labelBonuses)
 
   // Weighted signals scaled to a 0-100-ish range, plus flat label bonuses.
@@ -120,10 +155,11 @@ export function scoreTask(task, { weights = DEFAULT_WEIGHTS, labelBonuses = DEFA
     priority: priority * weights.priority * 20,
     due: due * weights.due * 20,
     staleness: staleness * weights.staleness * 20,
+    duration: duration * (weights.duration ?? 0) * 20,
     labels,
   }
 
-  const total = weighted.priority + weighted.due + weighted.staleness + weighted.labels
+  const total = weighted.priority + weighted.due + weighted.staleness + weighted.duration + weighted.labels
 
   return {
     total: Math.round(total * 10) / 10,
@@ -131,6 +167,12 @@ export function scoreTask(task, { weights = DEFAULT_WEIGHTS, labelBonuses = DEFA
       priority: { raw: priority, weighted: Math.round(weighted.priority * 10) / 10 },
       due: { raw: due, weighted: Math.round(weighted.due * 10) / 10 },
       staleness: { raw: staleness, weighted: Math.round(weighted.staleness * 10) / 10 },
+      duration: {
+        raw: duration,
+        weighted: Math.round(weighted.duration * 10) / 10,
+        minutes: durationInfo.minutes,
+        isDefault: durationInfo.isDefault,
+      },
       labels: { weighted: Math.round(weighted.labels * 10) / 10 },
     },
   }
