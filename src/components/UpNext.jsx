@@ -7,7 +7,6 @@ import TaskIndicators from './TaskIndicators'
 import DurationChip from './DurationChip'
 import { effectiveDurationMinutes, formatMinutes } from '../lib/duration'
 import { taskUrl, formatProjectMeta, formatDue, isOverdue } from '../lib/taskDisplay'
-import { useCoarsePointer } from '../lib/useCoarsePointer'
 
 // The whole Up Next section is one droppable zone. It's what decides
 // whether a drop lands in Up Next at all (see upNextCollisionDetection in
@@ -17,7 +16,6 @@ export const UP_NEXT_DROPPABLE_ID = 'up-next'
 
 function UpNextItem({ task, projectsById, sectionsById, isCompleting, onComplete, onRemove, hasComments, openInDesktopApp }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id })
-  const isCoarse = useCoarsePointer()
   const dragProps = { ...attributes, ...listeners }
   const style = { transform: CSS.Transform.toString(transform), transition }
 
@@ -25,12 +23,11 @@ function UpNextItem({ task, projectsById, sectionsById, isCompleting, onComplete
     <li
       ref={setNodeRef}
       style={style}
-      className={`up-next-item${isDragging ? ' is-dragging' : ''}${!isCoarse ? ' row-draggable' : ''}`}
-      // Same mouse-vs-touch split as the ranked table: whole item on a
-      // precise pointer, handle-only on touch.
-      {...(isCoarse ? {} : dragProps)}
+      className={`up-next-item row-draggable${isDragging ? ' is-dragging' : ''}`}
+      // Same as the ranked table: the whole item is the drag source.
+      {...dragProps}
     >
-      <CompleteCheckbox checked={isCompleting} onComplete={() => onComplete(task.id)} dragProps={isCoarse ? dragProps : {}} />
+      <CompleteCheckbox checked={isCompleting} onComplete={() => onComplete(task.id)} />
       <span className="up-next-content">
         <a href={taskUrl(task, { desktopApp: openInDesktopApp })} {...(openInDesktopApp ? {} : { target: '_blank', rel: 'noreferrer' })}>
           {task.content}

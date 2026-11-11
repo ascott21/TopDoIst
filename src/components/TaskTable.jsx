@@ -5,14 +5,12 @@ import TaskIndicators from './TaskIndicators'
 import DurationChip from './DurationChip'
 import { formatMinutes } from '../lib/duration'
 import { taskUrl, formatProjectMeta, formatDue, isOverdue } from '../lib/taskDisplay'
-import { useCoarsePointer } from '../lib/useCoarsePointer'
 
 function TaskRow({ task, breakdown, projectsById, sectionsById, isCompleting, onComplete, hasComments, openInDesktopApp }) {
   // Deliberately not sortable — this list is algorithmically ranked, not
   // manually reorderable. Dragging one out just needs a source; where it's
   // dropped (Up Next) is what makes it sortable.
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: task.id })
-  const isCoarse = useCoarsePointer()
   const dragProps = { ...attributes, ...listeners }
 
   const { minutes: durationMinutes, isDefault: durationIsDefault } = breakdown.duration
@@ -29,16 +27,16 @@ function TaskRow({ task, breakdown, projectsById, sectionsById, isCompleting, on
   return (
     <tr
       ref={setNodeRef}
-      className={`${isDragging ? 'is-dragging' : ''} ${!isCoarse ? 'row-draggable' : ''}`}
+      className={`row-draggable${isDragging ? ' is-dragging' : ''}`}
       title={title}
-      // On a mouse/trackpad, the whole row can start a drag (a quick click
-      // still reaches the link/checkbox — see CompleteCheckbox). On touch,
-      // keep the drag zone confined to the checkbox handle so a scroll
-      // gesture starting anywhere else on the row isn't hijacked.
-      {...(isCoarse ? {} : dragProps)}
+      // The whole row starts a drag, with a mouse or a finger. A quick
+      // click/tap still reaches the link or checkbox, and on touch a swipe
+      // that moves before the hold completes scrolls the page as usual
+      // (see the sensors in App.jsx).
+      {...dragProps}
     >
       <td className="col-check">
-        <CompleteCheckbox checked={isCompleting} onComplete={() => onComplete(task.id)} dragProps={isCoarse ? dragProps : {}} />
+        <CompleteCheckbox checked={isCompleting} onComplete={() => onComplete(task.id)} />
       </td>
       <td className="col-task">
         {/* A todoist:// link isn't a real page to load in a new tab — just

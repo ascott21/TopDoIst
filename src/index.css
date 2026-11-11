@@ -328,7 +328,7 @@ select {
   width: 5rem;
 }
 
-/* Complete checkbox — also the drag handle (see CompleteCheckbox.jsx) */
+/* Complete checkbox (see CompleteCheckbox.jsx) */
 .complete-checkbox {
   width: 1.15rem;
   height: 1.15rem;
@@ -341,21 +341,24 @@ select {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  cursor: grab;
-  /* Let dnd-kit's TouchSensor own touch gestures on this control instead of
-     the browser's default scroll/zoom handling. */
-  touch-action: none;
-  /* Same reasoning as .row-draggable below: a held press on this handle
-     shouldn't let the browser start selecting the row's text underneath
-     it. Set unconditionally (not just when the whole row is draggable),
-     since this is the only drag target in touch mode. */
-  -webkit-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
+  /* No touch-action override: a swipe that starts on the checkbox should
+     scroll the page like one anywhere else on the row. */
 }
 
-.complete-checkbox:active {
-  cursor: grabbing;
+/* On touch, the 18px circle is far below a comfortable finger target
+   (~44px). Grow its tap area with an invisible pseudo-element (it's part of
+   the button, so taps on it reach the button's handlers). It extends less
+   to the right, so it doesn't cover the start of the task title. */
+@media (pointer: coarse) {
+  .complete-checkbox {
+    position: relative;
+  }
+
+  .complete-checkbox::before {
+    content: '';
+    position: absolute;
+    inset: -13px -6px -13px -12px;
+  }
 }
 
 .complete-checkbox.is-checked {
@@ -374,18 +377,17 @@ select {
   opacity: 0.4;
 }
 
-/* Applied to every ranked-table row and Up Next item unconditionally —
-   not just when the whole row is the drag target (.row-draggable) — so a
-   held press anywhere in the row, including on the checkbox handle in
-   touch mode, can't be hijacked into the browser's native "click-drag to
-   select text" gesture. Activation is delay-based (a brief hold before a
-   drag starts, see App.jsx's sensors), which looks exactly like the start
-   of a text selection, so this matters everywhere a drag can begin. */
+/* Every ranked-table row and Up Next item is a drag source. Activation is
+   delay-based (a brief hold before a drag starts, see App.jsx's sensors),
+   which looks exactly like the start of a text selection — or, on iOS, a
+   long-press on the task link, which would pop up its link preview. Turn
+   both off so a held press can only ever become a drag. */
 .task-table tbody tr,
 .up-next-item {
   -webkit-user-select: none;
   -ms-user-select: none;
   user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .row-draggable {
