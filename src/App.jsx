@@ -1,5 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { DndContext, DragOverlay, PointerSensor, closestCenter, pointerWithin, useSensor, useSensors } from '@dnd-kit/core'
+import {
+  DndContext,
+  DragOverlay,
+  MouseSensor,
+  TouchSensor,
+  closestCenter,
+  pointerWithin,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
 import { arrayMove } from '@dnd-kit/sortable'
 import {
   clearStoredToken,
@@ -216,13 +225,24 @@ export default function App() {
     return activeDragIdRef.current !== null || completingIdsRef.current.size > 0 || pendingWritesRef.current > 0
   }
 
-  // A single PointerSensor handles mouse, touch, and pen uniformly (Pointer
-  // Events unify all three). Using PointerSensor and TouchSensor together
-  // is a known dnd-kit footgun — both fire for the same touch interaction
-  // and race each other, so touch drags can misfire. A short hold before a
-  // drag activates means a plain tap/click still reaches the checkbox's
-  // onClick instead of starting a drag, and a touch scroll isn't hijacked.
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { delay: 200, tolerance: 6 } }))
+  // Mouse and touch each get their own sensor. A PointerSensor can't stop a
+  // touch from scrolling the page mid-drag (pointermove's preventDefault
+  // doesn't block scrolling), so it relies entirely on CSS touch-action,
+  // which iOS Safari doesn't reliably honor for a gesture that starts with
+  // a press-and-hold — the page would scroll out from under the drag, or
+  // Safari would cancel it. TouchSensor calls preventDefault on touchmove
+  // once the drag is active (with the non-passive listener iOS needs for
+  // that to take effect). Mouse + Touch is dnd-kit's recommended pairing;
+  // it's PointerSensor + TouchSensor together that race each other.
+  //
+  // Both use a short hold before a drag activates, so a plain tap/click
+  // still reaches the checkbox's onClick instead of starting a drag. On
+  // touch, moving more than the tolerance during that hold cancels it, so
+  // a swipe that starts on the handle doesn't turn into a drag.
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { delay: 200, tolerance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+  )
 
   useEffect(() => saveUpNextOrder(upNextOrder), [upNextOrder])
   useEffect(() => {
