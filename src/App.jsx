@@ -57,6 +57,26 @@ function upNextCollisionDetection(args) {
   return closestItems.length > 0 ? closestItems : [{ id: UP_NEXT_DROPPABLE_ID }]
 }
 
+// Whole rows are drag sources, so a drag can start on a task's link. If
+// you press, hold, and let go without moving (or end up back on the link),
+// the browser still fires a click there afterwards and would open the task.
+// dnd-kit only stops that click's propagation (enough for the checkbox's
+// onClick, not for a link's default navigation), so swallow it outright.
+// Time-boxed, in case no click follows at all.
+function suppressNextClick() {
+  const swallow = (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    cleanup()
+  }
+  const cleanup = () => {
+    window.removeEventListener('click', swallow, true)
+    clearTimeout(timer)
+  }
+  window.addEventListener('click', swallow, true)
+  const timer = setTimeout(cleanup, 400)
+}
+
 function loadUpNextOrder() {
   try {
     return JSON.parse(localStorage.getItem(UP_NEXT_ORDER_KEY)) ?? []
@@ -236,12 +256,14 @@ export default function App() {
   // it's PointerSensor + TouchSensor together that race each other.
   //
   // Both use a short hold before a drag activates, so a plain tap/click
-  // still reaches the checkbox's onClick instead of starting a drag. On
+  // still reaches the link or checkbox instead of starting a drag. On
   // touch, moving more than the tolerance during that hold cancels it, so
-  // a swipe that starts on the handle doesn't turn into a drag.
+  // an ordinary swipe anywhere on a row scrolls the page instead of
+  // picking the task up. The touch hold is a little longer than the mouse
+  // one, so a finger that pauses briefly before scrolling doesn't grab.
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { delay: 200, tolerance: 6 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
   )
 
   useEffect(() => saveUpNextOrder(upNextOrder), [upNextOrder])
@@ -499,10 +521,24 @@ export default function App() {
 
   function handleDragStart(event) {
     setActiveDragId(event.active.id)
+    // A small buzz, where supported (Android), so a held press clearly
+    // reads as "picked up" before you start moving.
+    if (typeof TouchEvent !== 'undefined' && event.activatorEvent instanceof TouchEvent) {
+      navigator.vibrate?.(10)
+    }
+  }
+
+  // Esc, a resize, switching apps mid-drag, or the OS taking over the touch
+  // all cancel a drag without a drag end. Without this, activeDragId would
+  // stay set and the background poll would think a drag was still running.
+  function handleDragCancel() {
+    setActiveDragId(null)
+    suppressNextClick()
   }
 
   function handleDragEnd(event) {
     setActiveDragId(null)
+    suppressNextClick()
     const { active, over } = event
     if (!over) return
 
@@ -660,7 +696,13 @@ export default function App() {
 
       {error && <p className="error">{error}</p>}
 
-      <DndContext sensors={sensors} collisionDetection={upNextCollisionDetection} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={upNextCollisionDetection}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        onDragCancel={handleDragCancel}
+      >
         <UpNext
           tasks={upNextTasks}
           projectsById={projectsById}
