@@ -10,15 +10,9 @@ const SLIDERS = [
   },
 ]
 
-export default function WeightControls({ weights, onChange, onReset, defaultDurationMinutes, onDefaultDurationChange }) {
+export default function WeightControls({ weights, onChange, defaultDurationMinutes, onDefaultDurationChange }) {
   return (
     <div className="weight-controls">
-      <div className="weight-controls-header">
-        <h2>Weights</h2>
-        <button type="button" className="link-button" onClick={onReset}>
-          Reset to defaults
-        </button>
-      </div>
       {SLIDERS.map(({ key, label, hint, min = 0, max = 3 }) => (
         <label key={key} className="weight-slider">
           <div className="weight-slider-label">

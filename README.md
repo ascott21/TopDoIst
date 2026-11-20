@@ -223,7 +223,10 @@ independently.
 
 ## Settings
 
-The gear icon opens a settings panel with:
+The gear icon opens a settings panel. Each section has the same
+collapsible header as the main page (all start open; collapsed sections
+are remembered in this browser), and sections with a "Reset to defaults"
+keep it in the header so it works even while collapsed. The sections:
 
 - **Shared project tasks** — how to handle tasks in projects you share with
   other people: include everyone's, include only unassigned tasks plus
@@ -244,9 +247,11 @@ The gear icon opens a settings panel with:
 - **Lead times** — which labels hold a task in Not yet, and for how long
   (a number plus days or hours). Edit in place, remove, or add your own
   (your Todoist labels are offered as suggestions). "Reset to defaults"
-  restores the five above, plus the `waiting` hold label. Hold labels are
-  edited just below lead times. (This replaced the old label bonuses, which
+  restores the five above. (This replaced the old label bonuses, which
   added flat points to a task's score.)
+- **Hold labels** — labels (default `waiting`) that keep a task in Not yet
+  until the label is removed. Add or remove them; "Reset to defaults"
+  restores `waiting`.
 - **Links** — "Open tasks in the Todoist desktop app" switches every task
   title from a `https://todoist.com/...` link to a `todoist://task?id=...`
   one, which the desktop (and mobile) app registers itself as the handler

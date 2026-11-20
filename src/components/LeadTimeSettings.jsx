@@ -3,23 +3,12 @@ import { LEAD_UNITS } from '../lib/leadTime'
 
 // Which labels hold a task back until it's close enough to its due date to
 // work on, and by how much (see src/lib/leadTime.js).
-export default function LeadTimeSettings({
-  leadTimes,
-  availableLabels,
-  onSet,
-  onRemove,
-  onReset,
-  holdLabels,
-  onAddHold,
-  onRemoveHold,
-}) {
+export default function LeadTimeSettings({ leadTimes, onSet, onRemove }) {
   const [newLabel, setNewLabel] = useState('')
   const [newAmount, setNewAmount] = useState('')
   const [newUnit, setNewUnit] = useState('days')
-  const [newHold, setNewHold] = useState('')
 
   const entries = Object.entries(leadTimes).sort(([, a], [, b]) => toHours(a) - toHours(b))
-  const suggestions = availableLabels.filter((l) => !Object.hasOwn(leadTimes, l.toLowerCase()))
 
   function handleAdd(e) {
     e.preventDefault()
@@ -32,14 +21,6 @@ export default function LeadTimeSettings({
     setNewUnit('days')
   }
 
-  function handleAddHold(e) {
-    e.preventDefault()
-    const label = newHold.trim().toLowerCase()
-    if (!label) return
-    onAddHold(label)
-    setNewHold('')
-  }
-
   function handleAmountChange(label, current, rawValue) {
     const amount = parseFloat(rawValue)
     if (!Number.isNaN(amount) && amount >= 0) onSet(label, { ...current, amount })
@@ -47,13 +28,6 @@ export default function LeadTimeSettings({
 
   return (
     <div className="lead-time-settings">
-      <div className="settings-subheader">
-        <h2>Lead times</h2>
-        <button type="button" className="link-button" onClick={onReset}>
-          Reset to defaults
-        </button>
-      </div>
-
       {entries.length === 0 ? (
         <p className="lead-time-empty">No lead-time labels configured.</p>
       ) : (
@@ -98,11 +72,6 @@ export default function LeadTimeSettings({
           onChange={(e) => setNewLabel(e.target.value)}
           className="lead-time-add-name"
         />
-        <datalist id="topdoist-label-suggestions">
-          {suggestions.map((l) => (
-            <option key={l} value={l} />
-          ))}
-        </datalist>
         <input
           type="number"
           min="0"
@@ -126,42 +95,6 @@ export default function LeadTimeSettings({
         A task with one of these labels stays in "Not yet" until this long before it's due. Days open
         at midnight; hours count back from the due time (or from the start of the due day if it has
         no time). With two lead labels on one task, the longer one wins and the task gets a ⚠ flag.
-      </p>
-
-      <h3 className="hold-heading">Hold labels</h3>
-      {holdLabels.length === 0 ? (
-        <p className="lead-time-empty">No hold labels configured.</p>
-      ) : (
-        <ul className="hold-list">
-          {holdLabels.map((label) => (
-            <li key={label} className="hold-chip">
-              {label}
-              <button
-                type="button"
-                className="hold-remove"
-                onClick={() => onRemoveHold(label)}
-                aria-label={`Remove hold label ${label}`}
-              >
-                ×
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-      <form className="lead-time-add" onSubmit={handleAddHold}>
-        <input
-          type="text"
-          list="topdoist-label-suggestions"
-          placeholder="Label name"
-          value={newHold}
-          onChange={(e) => setNewHold(e.target.value)}
-          className="lead-time-add-name"
-        />
-        <button type="submit">Add</button>
-      </form>
-      <p className="weight-hint">
-        A task with one of these labels stays in "Not yet" regardless of its due date or lead time — even
-        if it's overdue — until you take the label off. Up Next still overrides it.
       </p>
     </div>
   )

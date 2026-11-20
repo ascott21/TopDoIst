@@ -745,6 +745,9 @@ export default function App() {
 
   function handleResetLeadTimes() {
     setLeadTimes({ ...DEFAULT_LEAD_TIMES })
+  }
+
+  function handleResetHoldLabels() {
     setHoldLabels([...DEFAULT_HOLD_LABELS])
   }
 
@@ -935,6 +938,7 @@ export default function App() {
         holdLabels={holdLabels}
         onAddHoldLabel={handleAddHoldLabel}
         onRemoveHoldLabel={handleRemoveHoldLabel}
+        onResetHoldLabels={handleResetHoldLabels}
         openInDesktopApp={openInDesktopApp}
         onOpenInDesktopAppChange={setOpenInDesktopApp}
       />

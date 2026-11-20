@@ -1,8 +1,41 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import WeightControls from './WeightControls'
 import ProjectFilter from './ProjectFilter'
 import LeadTimeSettings from './LeadTimeSettings'
+import HoldLabelSettings from './HoldLabelSettings'
+import SectionToggle from './SectionToggle'
 import { ASSIGNMENT_MODE_OPTIONS } from '../lib/assignment'
+
+// Settings sections the user has collapsed. Every section starts open; the
+// choice is remembered in this browser, like the main page's sections.
+const COLLAPSED_KEY = 'topdoist:settingsCollapsed'
+
+function loadCollapsed() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(COLLAPSED_KEY))
+    return Array.isArray(raw) ? raw : []
+  } catch {
+    return []
+  }
+}
+
+function SettingsSection({ id, title, action, collapsed, onToggle, children }) {
+  const expanded = !collapsed.includes(id)
+  return (
+    <section className="settings-section">
+      <SectionToggle title={title} expanded={expanded} onToggle={() => onToggle(id)} extra={action} />
+      {expanded && <div className="settings-section-body">{children}</div>}
+    </section>
+  )
+}
+
+function ResetButton({ onClick }) {
+  return (
+    <button type="button" className="link-button" onClick={onClick}>
+      Reset to defaults
+    </button>
+  )
+}
 
 export default function SettingsPanel({
   open,
@@ -27,9 +60,24 @@ export default function SettingsPanel({
   holdLabels,
   onAddHoldLabel,
   onRemoveHoldLabel,
+  onResetHoldLabels,
   openInDesktopApp,
   onOpenInDesktopAppChange,
 }) {
+  const [collapsed, setCollapsed] = useState(loadCollapsed)
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(COLLAPSED_KEY, JSON.stringify(collapsed))
+    } catch {
+      // ignore storage failures
+    }
+  }, [collapsed])
+
+  function toggleSection(id) {
+    setCollapsed((prev) => (prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]))
+  }
+
   // Close on Escape, for anyone who doesn't want to reach for the mouse.
   useEffect(() => {
     if (!open) return
@@ -42,6 +90,14 @@ export default function SettingsPanel({
 
   if (!open) return null
 
+  const sectionProps = { collapsed, onToggle: toggleSection }
+  // Your Todoist labels not already used as a lead time or hold label —
+  // offered as suggestions in both "add label" boxes.
+  const labelSuggestions = availableLabels.filter((l) => {
+    const key = l.toLowerCase()
+    return !Object.hasOwn(leadTimes, key) && !holdLabels.includes(key)
+  })
+
   return (
     <div className="settings-overlay" onClick={onClose}>
       <aside className="settings-panel" onClick={(e) => e.stopPropagation()}>
@@ -52,8 +108,13 @@ export default function SettingsPanel({
           </button>
         </div>
 
-        <section className="settings-section">
-          <h3>Shared project tasks</h3>
+        <datalist id="topdoist-label-suggestions">
+          {labelSuggestions.map((l) => (
+            <option key={l} value={l} />
+          ))}
+        </datalist>
+
+        <SettingsSection id="assignment" title="Shared project tasks" {...sectionProps}>
           {ASSIGNMENT_MODE_OPTIONS.map((opt) => (
             <label key={opt.value} className="radio-option">
               <input
@@ -66,10 +127,9 @@ export default function SettingsPanel({
               {opt.label}
             </label>
           ))}
-        </section>
+        </SettingsSection>
 
-        <section className="settings-section">
-          <h3>Project</h3>
+        <SettingsSection id="project" title="Project" {...sectionProps}>
           <ProjectFilter
             projects={projects}
             isSelected={isProjectSelected}
@@ -77,33 +137,41 @@ export default function SettingsPanel({
             onToggleProject={onToggleProject}
             onToggleAll={onToggleAllProjects}
           />
-        </section>
+        </SettingsSection>
 
-        <section className="settings-section">
+        <SettingsSection
+          id="weights"
+          title="Weights"
+          action={<ResetButton onClick={onResetWeights} />}
+          {...sectionProps}
+        >
           <WeightControls
             weights={weights}
             onChange={onWeightsChange}
-            onReset={onResetWeights}
             defaultDurationMinutes={defaultDurationMinutes}
             onDefaultDurationChange={onDefaultDurationChange}
           />
-        </section>
+        </SettingsSection>
 
-        <section className="settings-section">
-          <LeadTimeSettings
-            leadTimes={leadTimes}
-            availableLabels={availableLabels}
-            onSet={onSetLeadTime}
-            onRemove={onRemoveLeadTime}
-            onReset={onResetLeadTimes}
-            holdLabels={holdLabels}
-            onAddHold={onAddHoldLabel}
-            onRemoveHold={onRemoveHoldLabel}
-          />
-        </section>
+        <SettingsSection
+          id="leadTimes"
+          title="Lead times"
+          action={<ResetButton onClick={onResetLeadTimes} />}
+          {...sectionProps}
+        >
+          <LeadTimeSettings leadTimes={leadTimes} onSet={onSetLeadTime} onRemove={onRemoveLeadTime} />
+        </SettingsSection>
 
-        <section className="settings-section">
-          <h3>Links</h3>
+        <SettingsSection
+          id="holdLabels"
+          title="Hold labels"
+          action={<ResetButton onClick={onResetHoldLabels} />}
+          {...sectionProps}
+        >
+          <HoldLabelSettings holdLabels={holdLabels} onAdd={onAddHoldLabel} onRemove={onRemoveHoldLabel} />
+        </SettingsSection>
+
+        <SettingsSection id="links" title="Links" {...sectionProps}>
           <label className="checkbox-option">
             <input
               type="checkbox"
@@ -117,7 +185,7 @@ export default function SettingsPanel({
             Todoist desktop app is installed on this device — otherwise clicking a task will do
             nothing. This is a per-device setting, not synced anywhere.
           </span>
-        </section>
+        </SettingsSection>
       </aside>
     </div>
   )

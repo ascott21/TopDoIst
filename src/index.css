@@ -192,9 +192,13 @@ select {
 }
 
 .settings-section {
-  padding-bottom: 1.25rem;
-  margin-bottom: 1.25rem;
+  padding-bottom: 0.6rem;
+  margin-bottom: 0.6rem;
   border-bottom: 1px solid var(--border);
+}
+
+.settings-section-body {
+  padding-bottom: 0.6rem;
 }
 
 .settings-section:last-child {
@@ -232,13 +236,6 @@ select {
   border-bottom: 1px solid var(--border);
 }
 
-.weight-controls-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 0.5rem;
-}
-
 .weight-controls h2 {
   font-size: 0.85rem;
   text-transform: uppercase;
@@ -274,21 +271,6 @@ select {
 }
 
 /* Lead times */
-.settings-subheader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 0.5rem;
-}
-
-.settings-subheader h2 {
-  font-size: 0.85rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-muted);
-  margin: 0;
-}
-
 .lead-time-empty {
   font-size: 0.85rem;
   color: var(--text-muted);
@@ -710,10 +692,6 @@ select {
 }
 
 /* Hold labels (e.g. "waiting") */
-.hold-heading {
-  margin-top: 1.25rem !important;
-}
-
 .hold-list {
   list-style: none;
   margin: 0 0 0.6rem;
