@@ -3,10 +3,11 @@ import PriorityDot from './PriorityDot'
 import CompleteCheckbox from './CompleteCheckbox'
 import TaskIndicators from './TaskIndicators'
 import DurationChip from './DurationChip'
+import LeadConflictFlag from './LeadConflictFlag'
 import { formatMinutes } from '../lib/duration'
-import { taskUrl, formatProjectMeta, formatDue, isOverdue } from '../lib/taskDisplay'
+import { taskUrl, formatProjectMeta, formatDue, formatOpens, isOverdue } from '../lib/taskDisplay'
 
-function TaskRow({ task, breakdown, projectsById, sectionsById, isCompleting, onComplete, hasComments, openInDesktopApp }) {
+function TaskRow({ task, breakdown, lead, showOpens, projectsById, sectionsById, isCompleting, onComplete, hasComments, openInDesktopApp }) {
   // Deliberately not sortable — this list is algorithmically ranked, not
   // manually reorderable. Dragging one out just needs a source; where it's
   // dropped (Up Next) is what makes it sortable.
@@ -21,8 +22,10 @@ function TaskRow({ task, breakdown, projectsById, sectionsById, isCompleting, on
     `due: ${breakdown.due.weighted}`,
     `staleness: ${breakdown.staleness.weighted}`,
     `duration: ${breakdown.duration.weighted}${durationNote}`,
-    `labels: ${breakdown.labels.weighted}`,
-  ].join('\n')
+    lead?.activeLabel && `lead: ${lead.activeLabel} → opens ${formatOpens(lead.opensAt)}`,
+  ]
+    .filter(Boolean)
+    .join('\n')
 
   return (
     <tr
@@ -59,9 +62,19 @@ function TaskRow({ task, breakdown, projectsById, sectionsById, isCompleting, on
           <span className="task-meta-project">{formatProjectMeta(task, projectsById, sectionsById)}</span>
           <DurationChip task={task} />
           <TaskIndicators hasDescription={!!task.description?.trim()} hasComments={hasComments} />
+          <LeadConflictFlag lead={lead} />
         </div>
       </td>
-      <td className={isOverdue(task.due) ? 'due-overdue' : undefined}>{formatDue(task.due)}</td>
+      {showOpens ? (
+        // "Not yet" rows: when it opens is the headline, due date beneath —
+        // one column rather than two, so it still fits on a phone.
+        <td className="col-opens">
+          {formatOpens(lead?.opensAt)}
+          <span className="opens-due">due {formatDue(task.due)}</span>
+        </td>
+      ) : (
+        <td className={isOverdue(task.due) ? 'due-overdue' : undefined}>{formatDue(task.due)}</td>
+      )}
     </tr>
   )
 }
@@ -75,8 +88,11 @@ export default function TaskTable({
   taskIdsWithComments,
   emptyMessage,
   openInDesktopApp,
+  leadById,
+  showOpens = false,
 }) {
   if (ranked.length === 0) {
+    if (emptyMessage === null) return null
     return <p className="empty">{emptyMessage ?? "No tasks left in the list — everything's either done or in Up Next."}</p>
   }
 
@@ -86,7 +102,7 @@ export default function TaskTable({
         <tr>
           <th className="col-check" aria-hidden="true"></th>
           <th className="col-task">Task</th>
-          <th>Due</th>
+          <th>{showOpens ? 'Opens' : 'Due'}</th>
         </tr>
       </thead>
       <tbody>
@@ -95,6 +111,8 @@ export default function TaskTable({
             key={task.id}
             task={task}
             breakdown={breakdown}
+            lead={leadById?.[task.id]}
+            showOpens={showOpens}
             projectsById={projectsById}
             sectionsById={sectionsById}
             isCompleting={completingIds.has(task.id)}

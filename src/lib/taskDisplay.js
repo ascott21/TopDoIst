@@ -77,3 +77,21 @@ export function isOverdue(due) {
   const instant = dueInstant(due)
   return instant !== null && instant.getTime() < Date.now()
 }
+
+const WEEKDAY_FORMATTER = new Intl.DateTimeFormat(undefined, { weekday: 'short' })
+
+// When a "Not yet" task opens up: "Tomorrow", "Tue", "Dec 3" — plus a time
+// only when it opens partway through a day (an hour-based lead such as
+// AtTime), since day-based leads always open at midnight.
+export function formatOpens(date) {
+  if (!date || Number.isNaN(date.getTime())) return '—'
+  const diff = daysFromToday(date)
+  let label
+  if (diff <= 0) label = 'Today'
+  else if (diff === 1) label = 'Tomorrow'
+  else if (diff < 7) label = WEEKDAY_FORMATTER.format(date)
+  else label = DATE_FORMATTER.format(date)
+
+  const atMidnight = date.getHours() === 0 && date.getMinutes() === 0
+  return atMidnight ? label : `${label} at ${TIME_FORMATTER.format(date)}`
+}

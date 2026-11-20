@@ -15,8 +15,7 @@ both because that's the point of using the app for anything beyond looking.
 Each task's score is a weighted combination of four signals, each first
 normalized to its own small range and then scaled by its weight × 20. With
 the default weights (priority 1, due 2, staleness 0, duration 0), each
-signal can contribute up to roughly 20 and 40 points respectively, plus
-whatever label bonuses apply. Staleness and duration default to off (0)
+signal can contribute up to roughly 20 and 40 points respectively. Staleness and duration default to off (0)
 but are there if you want them — turn their sliders in Settings to start
 factoring in how long a task has sat idle, or how long it'll take. The exact formula lives in `src/lib/scoring.js`; this
 just walks through it.
@@ -95,13 +94,6 @@ unless you set a **default duration** in Settings, in which case it's
 scored as if it had that duration. The score tooltip says when a default
 was used.
 
-### Label bonuses
-
-Unlike the four signals above, label bonuses are a flat addition to the
-final score rather than a normalized/weighted component — they don't scale
-with the weight sliders. None are set up out of the box; add your own
-from Settings (see below).
-
 ### Putting it together
 
 ```
@@ -109,11 +101,44 @@ total = (priorityScore  × priorityWeight  × 20)
       + (dueScore       × dueWeight       × 20)
       + (stalenessScore × stalenessWeight × 20)
       + (durationScore  × durationWeight  × 20)
-      + labelBonuses
 ```
 
 Hovering a row in the task table shows a tooltip with that task's actual
 per-component numbers, so you can see exactly why it landed where it did.
+
+## Lead times (Not yet)
+
+Todoist has no start date, so TopDoist uses **lead-time labels** instead: a
+label that says how far ahead of its due date a task can be started. Until
+then, the task sits in a collapsed **Not yet** section under the ranked list
+(with a count, e.g. "Not yet · 5"), sorted by when each one opens. Once a
+task opens, it moves into the ranked list and scores exactly like any other
+task — a lead time only decides *whether* a task shows, never its score.
+
+Defaults (editable in Settings):
+
+| Label | Opens |
+|---|---|
+| `SameDay` | at midnight on the due date |
+| `AtTime` | 1 hour before the due time (midnight of the due day if it has no time) |
+| `Lead3` | 3 days before the due date, at midnight |
+| `Lead7` | 7 days before |
+| `Lead30` | 30 days before |
+
+- Label matching ignores case.
+- A task with **no lead-time label, or no due date**, always shows, as before.
+- **Overdue** tasks are always past their opening, so they always show.
+- **Up Next overrides it**: a task you've put in Up Next stays there even if
+  it hasn't opened yet. You can also drag a task straight out of Not yet
+  into Up Next.
+- **Two or more lead-time labels** on one task is always a tagging mistake.
+  The *longest* lead wins (so the mistake errs toward visible-and-fixable,
+  not hidden), and the task gets a small orange **⚠ 2 leads** flag.
+- Recurring tasks work naturally: Todoist advances the due date to the next
+  occurrence, so the opening moves with it.
+- Whether a task has opened is re-checked every minute, not just on each
+  Todoist poll.
+- Hovering a row shows which lead label is in effect and when it opens.
 
 ## Up Next
 
@@ -211,12 +236,11 @@ The gear icon opens a settings panel with:
   set in Todoist, used by the Duration weight and the Up Next total.
   Blank (the default) means none. It never shows up as a task's own
   duration and never gets written back to Todoist.
-- **Label bonuses** — add, edit, or remove which labels affect a task's
-  score and by how much. Type a label name (your own Todoist labels are
-  offered as suggestions) and a point value, then Add; existing ones are
-  editable in place, or removable. Points can be negative, to push tasks
-  with that label down instead of up. "Reset to defaults" clears the list
-  (there are no default label bonuses).
+- **Lead times** — which labels hold a task in Not yet, and for how long
+  (a number plus days or hours). Edit in place, remove, or add your own
+  (your Todoist labels are offered as suggestions). "Reset to defaults"
+  restores the five above. (This replaced the old label bonuses, which
+  added flat points to a task's score.)
 - **Links** — "Open tasks in the Todoist desktop app" switches every task
   title from a `https://todoist.com/...` link to a `todoist://task?id=...`
   one, which the desktop (and mobile) app registers itself as the handler
@@ -250,8 +274,9 @@ due on a date.
 
 The search box above the ranked table filters it as you type, matching a
 task's title, description, or labels (case-insensitive, substring match —
-no need for exact wording). It only affects the ranked list; Up Next is
-short and manually curated, so there's nothing there worth searching.
+no need for exact wording). It searches the ranked list and Not yet — Not yet
+opens automatically while a search has matches there. Up Next is short and
+manually curated, so there's nothing there worth searching.
 Clearing the box (or the × next to it) brings everything back.
 
 ## Focus mode

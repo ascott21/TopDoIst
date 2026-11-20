@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import WeightControls from './WeightControls'
 import ProjectFilter from './ProjectFilter'
-import LabelBonusSettings from './LabelBonusSettings'
+import LeadTimeSettings from './LeadTimeSettings'
 import { ASSIGNMENT_MODE_OPTIONS } from '../lib/assignment'
 
 export default function SettingsPanel({
@@ -19,11 +19,11 @@ export default function SettingsPanel({
   onToggleAllProjects,
   assignmentMode,
   onAssignmentModeChange,
-  labelBonuses,
+  leadTimes,
   availableLabels,
-  onSetLabelBonus,
-  onRemoveLabelBonus,
-  onResetLabelBonuses,
+  onSetLeadTime,
+  onRemoveLeadTime,
+  onResetLeadTimes,
   openInDesktopApp,
   onOpenInDesktopAppChange,
 }) {
@@ -87,12 +87,12 @@ export default function SettingsPanel({
         </section>
 
         <section className="settings-section">
-          <LabelBonusSettings
-            labelBonuses={labelBonuses}
+          <LeadTimeSettings
+            leadTimes={leadTimes}
             availableLabels={availableLabels}
-            onSetBonus={onSetLabelBonus}
-            onRemoveBonus={onRemoveLabelBonus}
-            onReset={onResetLabelBonuses}
+            onSet={onSetLeadTime}
+            onRemove={onRemoveLeadTime}
+            onReset={onResetLeadTimes}
           />
         </section>
 

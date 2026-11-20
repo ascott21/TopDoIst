@@ -273,7 +273,7 @@ select {
   color: var(--text-muted);
 }
 
-/* Label bonuses */
+/* Lead times */
 .settings-subheader {
   display: flex;
   align-items: center;
@@ -289,13 +289,13 @@ select {
   margin: 0;
 }
 
-.label-bonus-empty {
+.lead-time-empty {
   font-size: 0.85rem;
   color: var(--text-muted);
   margin: 0 0 0.75rem;
 }
 
-.label-bonus-list {
+.lead-time-list {
   list-style: none;
   margin: 0 0 0.75rem;
   padding: 0;
@@ -304,14 +304,14 @@ select {
   gap: 0.4rem;
 }
 
-.label-bonus-row,
-.label-bonus-add {
+.lead-time-row,
+.lead-time-add {
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
 
-.label-bonus-name {
+.lead-time-name {
   flex: 1;
   font-size: 0.9rem;
   overflow: hidden;
@@ -319,13 +319,13 @@ select {
   white-space: nowrap;
 }
 
-.label-bonus-add-name {
+.lead-time-add-name {
   flex: 1;
   min-width: 0;
 }
 
-.label-bonus-points {
-  width: 5rem;
+.lead-time-amount {
+  width: 4rem;
 }
 
 /* Complete checkbox (see CompleteCheckbox.jsx) */
@@ -652,4 +652,61 @@ select {
   font-size: 0.8rem;
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
+}
+
+/* Lead-time conflict flag (two+ lead labels on one task) */
+.lead-conflict {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #b25e00;
+  background: rgba(230, 140, 20, 0.14);
+  border-radius: 4px;
+  padding: 0 0.35rem;
+  white-space: nowrap;
+}
+
+@media (prefers-color-scheme: dark) {
+  .lead-conflict {
+    color: #f0a54a;
+  }
+}
+
+/* "Not yet" section — tasks whose lead time hasn't opened */
+.not-yet {
+  margin-top: 1.5rem;
+}
+
+.not-yet-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0.4rem 0;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  cursor: pointer;
+  text-align: left;
+}
+
+.not-yet-toggle:hover {
+  color: var(--text);
+}
+
+.not-yet-chevron {
+  display: inline-block;
+  width: 0.8em;
+}
+
+.not-yet .task-table {
+  opacity: 0.8;
+}
+
+.opens-due {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-muted);
 }

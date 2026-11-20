@@ -5,6 +5,7 @@ import CompleteCheckbox from './CompleteCheckbox'
 import PriorityDot from './PriorityDot'
 import TaskIndicators from './TaskIndicators'
 import DurationChip from './DurationChip'
+import LeadConflictFlag from './LeadConflictFlag'
 import { effectiveDurationMinutes, formatMinutes } from '../lib/duration'
 import { taskUrl, formatProjectMeta, formatDue, isOverdue } from '../lib/taskDisplay'
 
@@ -14,7 +15,7 @@ import { taskUrl, formatProjectMeta, formatDue, isOverdue } from '../lib/taskDis
 // there are no items to drop next to.
 export const UP_NEXT_DROPPABLE_ID = 'up-next'
 
-function UpNextItem({ task, projectsById, sectionsById, isCompleting, onComplete, onRemove, hasComments, openInDesktopApp }) {
+function UpNextItem({ task, lead, projectsById, sectionsById, isCompleting, onComplete, onRemove, hasComments, openInDesktopApp }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id })
   const dragProps = { ...attributes, ...listeners }
   const style = { transform: CSS.Transform.toString(transform), transition }
@@ -44,6 +45,7 @@ function UpNextItem({ task, projectsById, sectionsById, isCompleting, onComplete
           )}
           <DurationChip task={task} />
           <TaskIndicators hasDescription={!!task.description?.trim()} hasComments={hasComments} />
+          <LeadConflictFlag lead={lead} />
         </span>
       </span>
       <button
@@ -96,6 +98,7 @@ export default function UpNext({
   taskIdsWithComments,
   openInDesktopApp,
   defaultDurationMinutes,
+  leadById,
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: UP_NEXT_DROPPABLE_ID })
 
@@ -124,6 +127,7 @@ export default function UpNext({
             <UpNextItem
               key={task.id}
               task={task}
+              lead={leadById?.[task.id]}
               projectsById={projectsById}
               sectionsById={sectionsById}
               isCompleting={completingIds.has(task.id)}

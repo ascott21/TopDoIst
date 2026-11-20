@@ -12,8 +12,8 @@
 //   - duration: how long the task is estimated to take (Todoist's own
 //     duration field). More time = a bigger raw score; the weight can be
 //     negative, so the same signal pushes long tasks up or down
-// Label bonuses are added on top so you can hand-tag a "quick win" or
-// "urgent" task to bump it in the list without changing its due date.
+// Whether a task shows in the ranking at all (lead-time labels) is decided
+// before scoring — see src/lib/leadTime.js — so it never affects a score.
 //
 // Each contribution is normalized to roughly 0-1 before weighting, so the
 // weights themselves (see DEFAULT_WEIGHTS) are meaningful dials rather than
@@ -33,10 +33,6 @@ export const DEFAULT_WEIGHTS = {
 // the Up Next total. null = no default: such a task scores zero on
 // duration, whichever way the weight points.
 export const DEFAULT_DEFAULT_DURATION_MINUTES = null
-
-// label (lowercased) -> flat bonus added to the final 0-100 score. None
-// out of the box — the Duration weight covers what a "long" label used to.
-export const DEFAULT_LABEL_BONUSES = {}
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24
 const MS_PER_HOUR = 1000 * 60 * 60
@@ -120,24 +116,12 @@ function durationScore(minutes) {
   return Math.log2(1 + capped / DURATION_CURVE_MINUTES) / Math.log2(1 + DURATION_CAP_MINUTES / DURATION_CURVE_MINUTES)
 }
 
-// Object.hasOwn rather than a plain lookup, so a label that happens to be
-// named like a built-in object property ("constructor", "toString") doesn't
-// pull in that property instead of a number.
-function labelBonus(task, labelBonuses) {
-  if (!task.labels?.length) return 0
-  return task.labels.reduce((sum, label) => {
-    const key = label.toLowerCase()
-    return sum + (Object.hasOwn(labelBonuses, key) ? labelBonuses[key] : 0)
-  }, 0)
-}
-
 // Scores a single task. Returns { total, breakdown } where breakdown shows
 // each component's raw and weighted contribution, useful for a tooltip.
 export function scoreTask(
   task,
   {
     weights = DEFAULT_WEIGHTS,
-    labelBonuses = DEFAULT_LABEL_BONUSES,
     defaultDurationMinutes = DEFAULT_DEFAULT_DURATION_MINUTES,
     now = new Date(),
   } = {},
@@ -147,18 +131,16 @@ export function scoreTask(
   const staleness = stalenessScore(task, now)
   const durationInfo = effectiveDurationMinutes(task, defaultDurationMinutes)
   const duration = durationScore(durationInfo.minutes)
-  const labels = labelBonus(task, labelBonuses)
 
-  // Weighted signals scaled to a 0-100-ish range, plus flat label bonuses.
+  // Weighted signals scaled to a 0-100-ish range.
   const weighted = {
     priority: priority * weights.priority * 20,
     due: due * weights.due * 20,
     staleness: staleness * weights.staleness * 20,
     duration: duration * (weights.duration ?? 0) * 20,
-    labels,
   }
 
-  const total = weighted.priority + weighted.due + weighted.staleness + weighted.duration + weighted.labels
+  const total = weighted.priority + weighted.due + weighted.staleness + weighted.duration
 
   return {
     total: Math.round(total * 10) / 10,
@@ -172,7 +154,6 @@ export function scoreTask(
         minutes: durationInfo.minutes,
         isDefault: durationInfo.isDefault,
       },
-      labels: { weighted: Math.round(weighted.labels * 10) / 10 },
     },
   }
 }
