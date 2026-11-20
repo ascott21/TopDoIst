@@ -270,6 +270,19 @@ breakpoints. When a task has an actual time set (not just a date), it's
 appended, e.g. "Today at 3:00 PM" — never fabricated for a task that's only
 due on a date.
 
+## Collapsible sections
+
+Up Next, Tasks (the ranked list), and Not yet each have the same header — a
+chevron, the section name, and a count — and click/tap to collapse or
+expand. Each remembers its state in this browser; by default Up Next and
+Tasks start open and Not yet starts closed. A few details:
+
+- Up Next's queued-time total stays in its header while collapsed.
+- A collapsed Up Next is still a drop target: drop a task on its header and
+  it's added at the end.
+- While searching, any section with matches opens on its own, so a match is
+  never hidden behind a collapsed header (Up Next isn't searched).
+
 ## Search
 
 The search box above the ranked table filters it as you type, matching a

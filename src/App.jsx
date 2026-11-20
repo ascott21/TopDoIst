@@ -31,6 +31,7 @@ import TokenGate from './components/TokenGate'
 import SettingsPanel from './components/SettingsPanel'
 import TaskTable from './components/TaskTable'
 import UpNext, { UP_NEXT_DROPPABLE_ID } from './components/UpNext'
+import SectionToggle from './components/SectionToggle'
 
 // A local hint for the order of tasks that carry the Up Next label — the
 // label alone decides membership, so ids here for unlabeled tasks are ignored.
@@ -40,7 +41,13 @@ const PROJECT_FILTER_KEY = 'topdoist:selectedProjectIds'
 const LEAD_TIMES_KEY = 'topdoist:leadTimes'
 // Label bonuses were replaced by lead times; the old setting is cleared on load.
 const LEGACY_LABEL_BONUSES_KEY = 'topdoist:labelBonuses'
-const NOT_YET_OPEN_KEY = 'topdoist:notYetOpen'
+// Which sections are expanded. Up Next and Tasks start open; Not yet closed.
+const SECTION_OPEN_KEYS = {
+  upNext: 'topdoist:upNextOpen',
+  ranked: 'topdoist:rankedOpen',
+  notYet: 'topdoist:notYetOpen',
+}
+const SECTION_OPEN_DEFAULTS = { upNext: true, ranked: true, notYet: false }
 const FOCUS_MODE_KEY = 'topdoist:focusMode'
 const OPEN_IN_DESKTOP_APP_KEY = 'topdoist:openInDesktopApp'
 const WEIGHTS_KEY = 'topdoist:weights'
@@ -148,12 +155,17 @@ function loadLeadTimes() {
   }
 }
 
-function loadNotYetOpen() {
+function loadSectionsOpen() {
+  const out = { ...SECTION_OPEN_DEFAULTS }
   try {
-    return localStorage.getItem(NOT_YET_OPEN_KEY) === 'true'
+    for (const [section, key] of Object.entries(SECTION_OPEN_KEYS)) {
+      const raw = localStorage.getItem(key)
+      if (raw !== null) out[section] = raw === 'true'
+    }
   } catch {
-    return false
+    // ignore storage failures
   }
+  return out
 }
 
 // Merged over the defaults so a weight added in a later version still gets
@@ -220,7 +232,7 @@ export default function App() {
   const [currentUserId, setCurrentUserId] = useState(null)
   const [weights, setWeights] = useState(loadWeights)
   const [leadTimes, setLeadTimes] = useState(loadLeadTimes)
-  const [notYetOpen, setNotYetOpen] = useState(loadNotYetOpen)
+  const [sectionsOpen, setSectionsOpen] = useState(loadSectionsOpen)
   // Ticks once a minute so tasks move out of "Not yet" when they open,
   // even between Todoist polls.
   const [now, setNow] = useState(() => new Date())
@@ -311,11 +323,13 @@ export default function App() {
   }, [leadTimes])
   useEffect(() => {
     try {
-      localStorage.setItem(NOT_YET_OPEN_KEY, String(notYetOpen))
+      for (const [section, key] of Object.entries(SECTION_OPEN_KEYS)) {
+        localStorage.setItem(key, String(sectionsOpen[section]))
+      }
     } catch {
       // ignore storage failures
     }
-  }, [notYetOpen])
+  }, [sectionsOpen])
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), CLOCK_TICK_MS)
     return () => clearInterval(id)
@@ -516,9 +530,15 @@ export default function App() {
     [searchedTasks, leadById, weights, defaultDurationMinutes, now],
   )
 
-  // While searching, matches in "Not yet" are shown without needing to
-  // expand it.
-  const notYetExpanded = notYetOpen || (searchQuery !== '' && notYet.length > 0)
+  // While searching, any section with matches opens on its own, so a hit is
+  // never hidden behind a collapsed header. Up Next isn't searched.
+  const searching = searchQuery !== ''
+  const rankedExpanded = sectionsOpen.ranked || (searching && ranked.length > 0)
+  const notYetExpanded = sectionsOpen.notYet || (searching && notYet.length > 0)
+
+  function toggleSection(section) {
+    setSectionsOpen((prev) => ({ ...prev, [section]: !prev[section] }))
+  }
 
   // Purely local — where a task sits within Up Next isn't something
   // Todoist's API can store, so reordering never touches the network.
@@ -773,6 +793,8 @@ export default function App() {
           openInDesktopApp={openInDesktopApp}
           defaultDurationMinutes={defaultDurationMinutes}
           leadById={leadById}
+          expanded={sectionsOpen.upNext}
+          onToggle={() => toggleSection('upNext')}
         />
 
         {!focusMode && (
@@ -796,37 +818,42 @@ export default function App() {
                 </button>
               )}
             </div>
-            <TaskTable
-              ranked={ranked}
-              projectsById={projectsById}
-              sectionsById={sectionsById}
-              completingIds={completingIds}
-              onComplete={handleComplete}
-              taskIdsWithComments={taskIdsWithComments}
-              emptyMessage={
-                searchQuery
-                  ? notYet.length > 0
-                    ? `No available tasks match "${searchQuery}" — see Not yet below.`
-                    : `No tasks match "${searchQuery}".`
-                  : undefined
-              }
-              openInDesktopApp={openInDesktopApp}
-              leadById={leadById}
-            />
+            <section className="ranked">
+              <SectionToggle
+                title="Tasks"
+                count={ranked.length}
+                expanded={rankedExpanded}
+                onToggle={() => toggleSection('ranked')}
+              />
+              {rankedExpanded && (
+                <TaskTable
+                  ranked={ranked}
+                  projectsById={projectsById}
+                  sectionsById={sectionsById}
+                  completingIds={completingIds}
+                  onComplete={handleComplete}
+                  taskIdsWithComments={taskIdsWithComments}
+                  emptyMessage={
+                    searchQuery
+                      ? notYet.length > 0
+                        ? `No available tasks match "${searchQuery}" — see Not yet below.`
+                        : `No tasks match "${searchQuery}".`
+                      : undefined
+                  }
+                  openInDesktopApp={openInDesktopApp}
+                  leadById={leadById}
+                />
+              )}
+            </section>
 
             {notYet.length > 0 && (
               <section className="not-yet">
-                <button
-                  type="button"
-                  className="not-yet-toggle"
-                  aria-expanded={notYetExpanded}
-                  onClick={() => setNotYetOpen((o) => !o)}
-                >
-                  <span className="not-yet-chevron" aria-hidden="true">
-                    {notYetExpanded ? '▾' : '▸'}
-                  </span>
-                  Not yet · {notYet.length}
-                </button>
+                <SectionToggle
+                  title="Not yet"
+                  count={notYet.length}
+                  expanded={notYetExpanded}
+                  onToggle={() => toggleSection('notYet')}
+                />
                 {notYetExpanded && (
                   <TaskTable
                     ranked={notYet}
@@ -846,7 +873,9 @@ export default function App() {
           </main>
         )}
 
-        <DragOverlay>{activeDragTask ? <div className="drag-overlay-card">{activeDragTask.content}</div> : null}</DragOverlay>
+        <DragOverlay>
+          {activeDragTask ? <div className="drag-overlay-card">{activeDragTask.content}</div> : null}
+        </DragOverlay>
       </DndContext>
 
       <SettingsPanel

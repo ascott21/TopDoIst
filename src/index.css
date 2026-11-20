@@ -414,20 +414,20 @@ select {
   background: var(--surface);
   border: 1px dashed var(--border);
   border-radius: 8px;
-  padding: 1rem;
-  margin-bottom: 1.5rem;
+  padding: 0.5rem 1rem;
+  margin-bottom: 1rem;
 }
 
-.up-next-empty.is-drag-over {
+.up-next > :last-child:not(.section-header) {
+  margin-bottom: 0.5rem;
+}
+
+.up-next.is-drag-over {
+  border-color: var(--accent);
+}
+
+.up-next.is-drag-over .up-next-empty {
   color: var(--accent);
-}
-
-.up-next h2 {
-  font-size: 0.85rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-muted);
-  margin: 0 0 0.75rem;
 }
 
 .up-next-empty {
@@ -635,25 +635,6 @@ select {
   font-variant-numeric: tabular-nums;
 }
 
-.up-next-header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-  margin: 0 0 0.75rem;
-}
-
-.up-next .up-next-header h2 {
-  margin: 0;
-}
-
-.up-next-total {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
-}
-
 /* Lead-time conflict flag (two+ lead labels on one task) */
 .lead-conflict {
   font-size: 0.7rem;
@@ -673,14 +654,21 @@ select {
 
 /* "Not yet" section — tasks whose lead time hasn't opened */
 .not-yet {
-  margin-top: 1.5rem;
+  margin-top: 1rem;
 }
 
-.not-yet-toggle {
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.section-toggle {
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  width: 100%;
+  flex: 1;
   background: none;
   border: none;
   padding: 0.4rem 0;
@@ -692,13 +680,23 @@ select {
   text-align: left;
 }
 
-.not-yet-toggle:hover {
+.section-toggle:hover {
   color: var(--text);
 }
 
-.not-yet-chevron {
+.section-chevron {
   display: inline-block;
   width: 0.8em;
+}
+
+.section-extra {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.section-header + * {
+  margin-top: 0.5rem;
 }
 
 .not-yet .task-table {
