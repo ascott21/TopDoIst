@@ -708,3 +708,46 @@ select {
   font-size: 0.75rem;
   color: var(--text-muted);
 }
+
+/* Hold labels (e.g. "waiting") */
+.hold-heading {
+  margin-top: 1.25rem !important;
+}
+
+.hold-list {
+  list-style: none;
+  margin: 0 0 0.6rem;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.hold-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.1rem 0.25rem 0.1rem 0.6rem;
+}
+
+.hold-remove {
+  border: none;
+  background: none;
+  padding: 0 0.3rem;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.hold-remove:hover {
+  color: var(--accent);
+}
+
+.opens-held {
+  font-style: italic;
+  text-transform: capitalize;
+}

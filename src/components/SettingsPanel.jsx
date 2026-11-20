@@ -24,6 +24,9 @@ export default function SettingsPanel({
   onSetLeadTime,
   onRemoveLeadTime,
   onResetLeadTimes,
+  holdLabels,
+  onAddHoldLabel,
+  onRemoveHoldLabel,
   openInDesktopApp,
   onOpenInDesktopAppChange,
 }) {
@@ -93,6 +96,9 @@ export default function SettingsPanel({
             onSet={onSetLeadTime}
             onRemove={onRemoveLeadTime}
             onReset={onResetLeadTimes}
+            holdLabels={holdLabels}
+            onAddHold={onAddHoldLabel}
+            onRemoveHold={onRemoveHoldLabel}
           />
         </section>
 

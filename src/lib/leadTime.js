@@ -17,10 +17,15 @@
 //     opening), so a tagging mistake errs toward visible-and-fixable rather
 //     than hidden. It's flagged as a conflict, since it's always an input
 //     error.
+//   - A hold label (default "waiting") keeps a task in "Not yet" no matter
+//     its due date or lead time — even overdue — until the label comes off.
 
 import { dueCalendarDate, dueHasTime, dueInstant } from './dueDate'
 
 export const LEAD_UNITS = ['days', 'hours']
+
+// Labels (lowercased) that hold a task in "Not yet" indefinitely.
+export const DEFAULT_HOLD_LABELS = ['waiting']
 
 // label (lowercased) -> { amount, unit }
 export const DEFAULT_LEAD_TIMES = {
@@ -50,6 +55,11 @@ function opensAt(due, { amount, unit }) {
   return daysBefore(dueDay, amount)
 }
 
+export function normalizeHoldLabels(raw) {
+  if (!Array.isArray(raw)) return [...DEFAULT_HOLD_LABELS]
+  return [...new Set(raw.map((l) => String(l).trim().toLowerCase()).filter(Boolean))]
+}
+
 // Validates whatever came out of localStorage (or an edit) into a clean
 // { label: { amount, unit } } map, dropping anything malformed.
 export function normalizeLeadTimes(raw) {
@@ -70,10 +80,20 @@ export function normalizeLeadTimes(raw) {
 //   opensAt      — Date the task becomes available, or null if it's always available
 //   isAvailable  — whether it belongs in the ranked list right now
 //   hasConflict  — more than one lead-time label on the task
-export function leadInfo(task, leadTimes, now = new Date()) {
-  const leadLabels = (task.labels ?? []).filter((l) => Object.hasOwn(leadTimes, l.toLowerCase()))
-  const base = { leadLabels, activeLabel: null, opensAt: null, isAvailable: true, hasConflict: leadLabels.length > 1 }
-  if (leadLabels.length === 0 || !task.due?.date) return base
+//   heldBy       — the hold label keeping it in "Not yet" (as written on the task), or null
+export function leadInfo(task, leadTimes, now = new Date(), holdLabels = DEFAULT_HOLD_LABELS) {
+  const labels = task.labels ?? []
+  const leadLabels = labels.filter((l) => Object.hasOwn(leadTimes, l.toLowerCase()))
+  const heldBy = labels.find((l) => holdLabels.includes(l.toLowerCase())) ?? null
+  const base = {
+    leadLabels,
+    activeLabel: null,
+    opensAt: null,
+    isAvailable: heldBy === null,
+    hasConflict: leadLabels.length > 1,
+    heldBy,
+  }
+  if (heldBy || leadLabels.length === 0 || !task.due?.date) return base
 
   let earliest = null
   let activeLabel = null

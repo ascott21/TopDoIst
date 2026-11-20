@@ -22,6 +22,7 @@ function TaskRow({ task, breakdown, lead, showOpens, projectsById, sectionsById,
     `due: ${breakdown.due.weighted}`,
     `staleness: ${breakdown.staleness.weighted}`,
     `duration: ${breakdown.duration.weighted}${durationNote}`,
+    lead?.heldBy && `on hold: ${lead.heldBy} (stays in Not yet until removed)`,
     lead?.activeLabel && `lead: ${lead.activeLabel} → opens ${formatOpens(lead.opensAt)}`,
   ]
     .filter(Boolean)
@@ -69,8 +70,8 @@ function TaskRow({ task, breakdown, lead, showOpens, projectsById, sectionsById,
         // "Not yet" rows: when it opens is the headline, due date beneath —
         // one column rather than two, so it still fits on a phone.
         <td className="col-opens">
-          {formatOpens(lead?.opensAt)}
-          <span className="opens-due">due {formatDue(task.due)}</span>
+          {lead?.heldBy ? <span className="opens-held">{lead.heldBy}</span> : formatOpens(lead?.opensAt)}
+          <span className="opens-due">{task.due ? `due ${formatDue(task.due)}` : 'no due date'}</span>
         </td>
       ) : (
         <td className={isOverdue(task.due) ? 'due-overdue' : undefined}>{formatDue(task.due)}</td>

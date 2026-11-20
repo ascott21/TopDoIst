@@ -24,7 +24,7 @@ import {
   updateTaskLabels,
 } from './api/todoist'
 import { DEFAULT_WEIGHTS, DEFAULT_DEFAULT_DURATION_MINUTES, rankTasks } from './lib/scoring'
-import { DEFAULT_LEAD_TIMES, leadInfo, normalizeLeadTimes } from './lib/leadTime'
+import { DEFAULT_HOLD_LABELS, DEFAULT_LEAD_TIMES, leadInfo, normalizeHoldLabels, normalizeLeadTimes } from './lib/leadTime'
 import { DEFAULT_ASSIGNMENT_MODE, passesAssignmentFilter } from './lib/assignment'
 import { UP_NEXT_LABEL, hasUpNextLabel, withLabelAdded, withLabelRemoved } from './lib/upNextLabel'
 import TokenGate from './components/TokenGate'
@@ -39,6 +39,7 @@ const UP_NEXT_ORDER_KEY = 'topdoist:upnext'
 const ASSIGNMENT_MODE_KEY = 'topdoist:assignmentMode'
 const PROJECT_FILTER_KEY = 'topdoist:selectedProjectIds'
 const LEAD_TIMES_KEY = 'topdoist:leadTimes'
+const HOLD_LABELS_KEY = 'topdoist:holdLabels'
 // Label bonuses were replaced by lead times; the old setting is cleared on load.
 const LEGACY_LABEL_BONUSES_KEY = 'topdoist:labelBonuses'
 // Which sections are expanded. Up Next and Tasks start open; Not yet closed.
@@ -155,6 +156,21 @@ function loadLeadTimes() {
   }
 }
 
+// Sort key for "Not yet": dated openings first (soonest first), held tasks
+// after them since they have no opening date.
+function opensSortKey(lead) {
+  return lead?.opensAt ? lead.opensAt.getTime() : Number.POSITIVE_INFINITY
+}
+
+function loadHoldLabels() {
+  try {
+    const raw = localStorage.getItem(HOLD_LABELS_KEY)
+    return raw == null ? [...DEFAULT_HOLD_LABELS] : normalizeHoldLabels(JSON.parse(raw))
+  } catch {
+    return [...DEFAULT_HOLD_LABELS]
+  }
+}
+
 function loadSectionsOpen() {
   const out = { ...SECTION_OPEN_DEFAULTS }
   try {
@@ -232,6 +248,7 @@ export default function App() {
   const [currentUserId, setCurrentUserId] = useState(null)
   const [weights, setWeights] = useState(loadWeights)
   const [leadTimes, setLeadTimes] = useState(loadLeadTimes)
+  const [holdLabels, setHoldLabels] = useState(loadHoldLabels)
   const [sectionsOpen, setSectionsOpen] = useState(loadSectionsOpen)
   // Ticks once a minute so tasks move out of "Not yet" when they open,
   // even between Todoist polls.
@@ -321,6 +338,13 @@ export default function App() {
       // ignore storage failures
     }
   }, [leadTimes])
+  useEffect(() => {
+    try {
+      localStorage.setItem(HOLD_LABELS_KEY, JSON.stringify(holdLabels))
+    } catch {
+      // ignore storage failures
+    }
+  }, [holdLabels])
   useEffect(() => {
     try {
       for (const [section, key] of Object.entries(SECTION_OPEN_KEYS)) {
@@ -462,8 +486,8 @@ export default function App() {
   // whether it carries conflicting lead labels. Recomputed when tasks
   // refresh, when lead-time settings change, and once a minute.
   const leadById = useMemo(
-    () => Object.fromEntries(tasks.map((t) => [t.id, leadInfo(t, leadTimes, now)])),
-    [tasks, leadTimes, now],
+    () => Object.fromEntries(tasks.map((t) => [t.id, leadInfo(t, leadTimes, now, holdLabels)])),
+    [tasks, leadTimes, now, holdLabels],
   )
 
   // Membership (which tasks are in Up Next) comes from the Up Next label,
@@ -510,8 +534,9 @@ export default function App() {
   )
 
   // Tasks whose lead time has opened (or that have none) are ranked as usual.
-  // The rest wait in "Not yet", soonest-opening first. Up Next is exempt:
-  // putting a task there yourself overrides its lead time.
+  // The rest wait in "Not yet", soonest-opening first, with held tasks
+  // (e.g. "waiting") last. Up Next is exempt: putting a task there yourself
+  // overrides its lead time or hold.
   const ranked = useMemo(
     () =>
       rankTasks(
@@ -526,7 +551,7 @@ export default function App() {
       rankTasks(
         searchedTasks.filter((t) => leadById[t.id]?.isAvailable === false),
         { weights, defaultDurationMinutes, now },
-      ).sort((a, b) => leadById[a.task.id].opensAt - leadById[b.task.id].opensAt),
+      ).sort((a, b) => opensSortKey(leadById[a.task.id]) - opensSortKey(leadById[b.task.id])),
     [searchedTasks, leadById, weights, defaultDurationMinutes, now],
   )
 
@@ -720,6 +745,15 @@ export default function App() {
 
   function handleResetLeadTimes() {
     setLeadTimes({ ...DEFAULT_LEAD_TIMES })
+    setHoldLabels([...DEFAULT_HOLD_LABELS])
+  }
+
+  function handleAddHoldLabel(label) {
+    setHoldLabels((prev) => normalizeHoldLabels([...prev, label]))
+  }
+
+  function handleRemoveHoldLabel(label) {
+    setHoldLabels((prev) => prev.filter((l) => l !== label))
   }
 
   function handleSignOut() {
@@ -898,6 +932,9 @@ export default function App() {
         onSetLeadTime={handleSetLeadTime}
         onRemoveLeadTime={handleRemoveLeadTime}
         onResetLeadTimes={handleResetLeadTimes}
+        holdLabels={holdLabels}
+        onAddHoldLabel={handleAddHoldLabel}
+        onRemoveHoldLabel={handleRemoveHoldLabel}
         openInDesktopApp={openInDesktopApp}
         onOpenInDesktopAppChange={setOpenInDesktopApp}
       />

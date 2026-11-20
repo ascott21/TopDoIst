@@ -131,6 +131,11 @@ Defaults (editable in Settings):
 - **Up Next overrides it**: a task you've put in Up Next stays there even if
   it hasn't opened yet. You can also drag a task straight out of Not yet
   into Up Next.
+- **Hold labels** (default: `waiting`) keep a task in Not yet *regardless*
+  of its due date or lead time — even if it's overdue, or has no due date —
+  until you take the label off. Held tasks are listed after the dated ones,
+  showing "Waiting" where the opening date would be. Up Next still
+  overrides a hold.
 - **Two or more lead-time labels** on one task is always a tagging mistake.
   The *longest* lead wins (so the mistake errs toward visible-and-fixable,
   not hidden), and the task gets a small orange **⚠ 2 leads** flag.
@@ -239,7 +244,8 @@ The gear icon opens a settings panel with:
 - **Lead times** — which labels hold a task in Not yet, and for how long
   (a number plus days or hours). Edit in place, remove, or add your own
   (your Todoist labels are offered as suggestions). "Reset to defaults"
-  restores the five above. (This replaced the old label bonuses, which
+  restores the five above, plus the `waiting` hold label. Hold labels are
+  edited just below lead times. (This replaced the old label bonuses, which
   added flat points to a task's score.)
 - **Links** — "Open tasks in the Todoist desktop app" switches every task
   title from a `https://todoist.com/...` link to a `todoist://task?id=...`
