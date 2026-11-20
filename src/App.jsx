@@ -23,25 +23,40 @@ import {
   storeToken,
   updateTaskLabels,
 } from './api/todoist'
-import { DEFAULT_WEIGHTS, DEFAULT_LABEL_BONUSES, DEFAULT_DEFAULT_DURATION_MINUTES, rankTasks } from './lib/scoring'
+import { DEFAULT_WEIGHTS, DEFAULT_DEFAULT_DURATION_MINUTES, rankTasks } from './lib/scoring'
+import { DEFAULT_HOLD_LABELS, DEFAULT_LEAD_TIMES, leadInfo, normalizeHoldLabels, normalizeLeadTimes } from './lib/leadTime'
 import { DEFAULT_ASSIGNMENT_MODE, passesAssignmentFilter } from './lib/assignment'
 import { UP_NEXT_LABEL, hasUpNextLabel, withLabelAdded, withLabelRemoved } from './lib/upNextLabel'
 import TokenGate from './components/TokenGate'
 import SettingsPanel from './components/SettingsPanel'
 import TaskTable from './components/TaskTable'
 import UpNext, { UP_NEXT_DROPPABLE_ID } from './components/UpNext'
+import SectionToggle from './components/SectionToggle'
 
 // A local hint for the order of tasks that carry the Up Next label — the
 // label alone decides membership, so ids here for unlabeled tasks are ignored.
 const UP_NEXT_ORDER_KEY = 'topdoist:upnext'
 const ASSIGNMENT_MODE_KEY = 'topdoist:assignmentMode'
 const PROJECT_FILTER_KEY = 'topdoist:selectedProjectIds'
-const LABEL_BONUSES_KEY = 'topdoist:labelBonuses'
+const LEAD_TIMES_KEY = 'topdoist:leadTimes'
+const HOLD_LABELS_KEY = 'topdoist:holdLabels'
+// Label bonuses were replaced by lead times; the old setting is cleared on load.
+const LEGACY_LABEL_BONUSES_KEY = 'topdoist:labelBonuses'
+// Which sections are expanded. Up Next and Tasks start open; Not yet closed.
+const SECTION_OPEN_KEYS = {
+  upNext: 'topdoist:upNextOpen',
+  ranked: 'topdoist:rankedOpen',
+  notYet: 'topdoist:notYetOpen',
+}
+const SECTION_OPEN_DEFAULTS = { upNext: true, ranked: true, notYet: false }
 const FOCUS_MODE_KEY = 'topdoist:focusMode'
 const OPEN_IN_DESKTOP_APP_KEY = 'topdoist:openInDesktopApp'
 const WEIGHTS_KEY = 'topdoist:weights'
 const DEFAULT_DURATION_KEY = 'topdoist:defaultDurationMinutes'
 const POLL_INTERVAL_MS = 15000
+// How often to re-check whether a "Not yet" task has opened, independent of
+// the Todoist poll (which pauses while you're mid-drag or the tab is hidden).
+const CLOCK_TICK_MS = 60000
 
 // closestCenter alone always reports the nearest droppable however far away
 // it is, so a task dropped back onto the ranked table would still land in
@@ -131,13 +146,42 @@ function loadSelectedProjectIds() {
   }
 }
 
-function loadLabelBonuses() {
+function loadLeadTimes() {
   try {
-    const raw = localStorage.getItem(LABEL_BONUSES_KEY)
-    return raw == null ? DEFAULT_LABEL_BONUSES : JSON.parse(raw)
+    localStorage.removeItem(LEGACY_LABEL_BONUSES_KEY)
+    const raw = localStorage.getItem(LEAD_TIMES_KEY)
+    return raw == null ? { ...DEFAULT_LEAD_TIMES } : normalizeLeadTimes(JSON.parse(raw))
   } catch {
-    return DEFAULT_LABEL_BONUSES
+    return { ...DEFAULT_LEAD_TIMES }
   }
+}
+
+// Sort key for "Not yet": dated openings first (soonest first), held tasks
+// after them since they have no opening date.
+function opensSortKey(lead) {
+  return lead?.opensAt ? lead.opensAt.getTime() : Number.POSITIVE_INFINITY
+}
+
+function loadHoldLabels() {
+  try {
+    const raw = localStorage.getItem(HOLD_LABELS_KEY)
+    return raw == null ? [...DEFAULT_HOLD_LABELS] : normalizeHoldLabels(JSON.parse(raw))
+  } catch {
+    return [...DEFAULT_HOLD_LABELS]
+  }
+}
+
+function loadSectionsOpen() {
+  const out = { ...SECTION_OPEN_DEFAULTS }
+  try {
+    for (const [section, key] of Object.entries(SECTION_OPEN_KEYS)) {
+      const raw = localStorage.getItem(key)
+      if (raw !== null) out[section] = raw === 'true'
+    }
+  } catch {
+    // ignore storage failures
+  }
+  return out
 }
 
 // Merged over the defaults so a weight added in a later version still gets
@@ -178,9 +222,9 @@ function loadOpenInDesktopApp() {
 }
 
 // Matches a task's title, description, labels, project name, and section
-// name — whichever the query shows up in, case-insensitively. Only touches
-// the ranked list; Up Next is short and manually curated, so there's
-// nothing there worth searching.
+// name — whichever the query shows up in, case-insensitively. Touches the
+// ranked list and "Not yet"; Up Next is short and manually curated, so
+// there's nothing there worth searching.
 function taskMatchesSearch(task, query, { projectsById, sectionsById } = {}) {
   if (!query) return true
   const q = query.toLowerCase()
@@ -203,7 +247,12 @@ export default function App() {
   const [taskIdsWithComments, setTaskIdsWithComments] = useState(() => new Set())
   const [currentUserId, setCurrentUserId] = useState(null)
   const [weights, setWeights] = useState(loadWeights)
-  const [labelBonuses, setLabelBonuses] = useState(loadLabelBonuses)
+  const [leadTimes, setLeadTimes] = useState(loadLeadTimes)
+  const [holdLabels, setHoldLabels] = useState(loadHoldLabels)
+  const [sectionsOpen, setSectionsOpen] = useState(loadSectionsOpen)
+  // Ticks once a minute so tasks move out of "Not yet" when they open,
+  // even between Todoist polls.
+  const [now, setNow] = useState(() => new Date())
   const [defaultDurationMinutes, setDefaultDurationMinutes] = useState(loadDefaultDurationMinutes)
   const [selectedProjectIds, setSelectedProjectIds] = useState(loadSelectedProjectIds)
   const [assignmentMode, setAssignmentMode] = useState(loadAssignmentMode)
@@ -284,11 +333,31 @@ export default function App() {
   }, [selectedProjectIds])
   useEffect(() => {
     try {
-      localStorage.setItem(LABEL_BONUSES_KEY, JSON.stringify(labelBonuses))
+      localStorage.setItem(LEAD_TIMES_KEY, JSON.stringify(leadTimes))
     } catch {
       // ignore storage failures
     }
-  }, [labelBonuses])
+  }, [leadTimes])
+  useEffect(() => {
+    try {
+      localStorage.setItem(HOLD_LABELS_KEY, JSON.stringify(holdLabels))
+    } catch {
+      // ignore storage failures
+    }
+  }, [holdLabels])
+  useEffect(() => {
+    try {
+      for (const [section, key] of Object.entries(SECTION_OPEN_KEYS)) {
+        localStorage.setItem(key, String(sectionsOpen[section]))
+      }
+    } catch {
+      // ignore storage failures
+    }
+  }, [sectionsOpen])
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), CLOCK_TICK_MS)
+    return () => clearInterval(id)
+  }, [])
   useEffect(() => {
     try {
       localStorage.setItem(WEIGHTS_KEY, JSON.stringify(weights))
@@ -413,6 +482,14 @@ export default function App() {
   const sectionsById = useMemo(() => Object.fromEntries(sections.map((s) => [s.id, s])), [sections])
   const tasksById = useMemo(() => Object.fromEntries(tasks.map((t) => [t.id, t])), [tasks])
 
+  // Each task's lead-time state: when it opens, whether it's open yet, and
+  // whether it carries conflicting lead labels. Recomputed when tasks
+  // refresh, when lead-time settings change, and once a minute.
+  const leadById = useMemo(
+    () => Object.fromEntries(tasks.map((t) => [t.id, leadInfo(t, leadTimes, now, holdLabels)])),
+    [tasks, leadTimes, now, holdLabels],
+  )
+
   // Membership (which tasks are in Up Next) comes from the Up Next label,
   // so it's the same on every device. Order is a local hint layered on top
   // — tasks with a saved position show in that order; anything labeled
@@ -435,10 +512,10 @@ export default function App() {
     const orderedIds = new Set(ordered.map((t) => t.id))
     const unordered = rankTasks(
       labeledUpNextTasks.filter((t) => !orderedIds.has(t.id)),
-      { weights, labelBonuses, defaultDurationMinutes },
+      { weights, defaultDurationMinutes, now },
     ).map((r) => r.task)
     return [...ordered, ...unordered]
-  }, [labeledUpNextTasks, upNextOrder, tasksById, weights, labelBonuses, defaultDurationMinutes])
+  }, [labeledUpNextTasks, upNextOrder, tasksById, weights, defaultDurationMinutes, now])
 
   const filteredTasks = useMemo(() => {
     return tasks.filter((t) => {
@@ -456,10 +533,37 @@ export default function App() {
     [filteredTasks, searchQuery, projectsById, sectionsById],
   )
 
+  // Tasks whose lead time has opened (or that have none) are ranked as usual.
+  // The rest wait in "Not yet", soonest-opening first, with held tasks
+  // (e.g. "waiting") last. Up Next is exempt: putting a task there yourself
+  // overrides its lead time or hold.
   const ranked = useMemo(
-    () => rankTasks(searchedTasks, { weights, labelBonuses, defaultDurationMinutes }),
-    [searchedTasks, weights, labelBonuses, defaultDurationMinutes],
+    () =>
+      rankTasks(
+        searchedTasks.filter((t) => leadById[t.id]?.isAvailable !== false),
+        { weights, defaultDurationMinutes, now },
+      ),
+    [searchedTasks, leadById, weights, defaultDurationMinutes, now],
   )
+
+  const notYet = useMemo(
+    () =>
+      rankTasks(
+        searchedTasks.filter((t) => leadById[t.id]?.isAvailable === false),
+        { weights, defaultDurationMinutes, now },
+      ).sort((a, b) => opensSortKey(leadById[a.task.id]) - opensSortKey(leadById[b.task.id])),
+    [searchedTasks, leadById, weights, defaultDurationMinutes, now],
+  )
+
+  // While searching, any section with matches opens on its own, so a hit is
+  // never hidden behind a collapsed header. Up Next isn't searched.
+  const searching = searchQuery !== ''
+  const rankedExpanded = sectionsOpen.ranked || (searching && ranked.length > 0)
+  const notYetExpanded = sectionsOpen.notYet || (searching && notYet.length > 0)
+
+  function toggleSection(section) {
+    setSectionsOpen((prev) => ({ ...prev, [section]: !prev[section] }))
+  }
 
   // Purely local — where a task sits within Up Next isn't something
   // Todoist's API can store, so reordering never touches the network.
@@ -627,20 +731,32 @@ export default function App() {
     setSelectedProjectIds(allProjectsSelected ? [] : null)
   }
 
-  function handleSetLabelBonus(label, points) {
-    setLabelBonuses((prev) => ({ ...prev, [label]: points }))
+  function handleSetLeadTime(label, value) {
+    setLeadTimes((prev) => ({ ...prev, [label]: value }))
   }
 
-  function handleRemoveLabelBonus(label) {
-    setLabelBonuses((prev) => {
+  function handleRemoveLeadTime(label) {
+    setLeadTimes((prev) => {
       const next = { ...prev }
       delete next[label]
       return next
     })
   }
 
-  function handleResetLabelBonuses() {
-    setLabelBonuses(DEFAULT_LABEL_BONUSES)
+  function handleResetLeadTimes() {
+    setLeadTimes({ ...DEFAULT_LEAD_TIMES })
+  }
+
+  function handleResetHoldLabels() {
+    setHoldLabels([...DEFAULT_HOLD_LABELS])
+  }
+
+  function handleAddHoldLabel(label) {
+    setHoldLabels((prev) => normalizeHoldLabels([...prev, label]))
+  }
+
+  function handleRemoveHoldLabel(label) {
+    setHoldLabels((prev) => prev.filter((l) => l !== label))
   }
 
   function handleSignOut() {
@@ -654,7 +770,7 @@ export default function App() {
     setTaskIdsWithComments(new Set())
     setCurrentUserId(null)
     // upNextOrder is left as-is, same as the other local preferences
-    // (weights, assignment mode, project filter, label bonuses) — it's
+    // (weights, assignment mode, project filter, lead times) — it's
     // just an ordering hint keyed by task id, harmless to keep around.
   }
 
@@ -713,6 +829,9 @@ export default function App() {
           taskIdsWithComments={taskIdsWithComments}
           openInDesktopApp={openInDesktopApp}
           defaultDurationMinutes={defaultDurationMinutes}
+          leadById={leadById}
+          expanded={sectionsOpen.upNext}
+          onToggle={() => toggleSection('upNext')}
         />
 
         {!focusMode && (
@@ -736,20 +855,64 @@ export default function App() {
                 </button>
               )}
             </div>
-            <TaskTable
-              ranked={ranked}
-              projectsById={projectsById}
-              sectionsById={sectionsById}
-              completingIds={completingIds}
-              onComplete={handleComplete}
-              taskIdsWithComments={taskIdsWithComments}
-              emptyMessage={searchQuery ? `No tasks match "${searchQuery}".` : undefined}
-              openInDesktopApp={openInDesktopApp}
-            />
+            <section className="ranked">
+              <SectionToggle
+                title="Tasks"
+                count={ranked.length}
+                expanded={rankedExpanded}
+                onToggle={() => toggleSection('ranked')}
+              />
+              {rankedExpanded && (
+                <TaskTable
+                  ranked={ranked}
+                  projectsById={projectsById}
+                  sectionsById={sectionsById}
+                  completingIds={completingIds}
+                  onComplete={handleComplete}
+                  taskIdsWithComments={taskIdsWithComments}
+                  emptyMessage={
+                    searchQuery
+                      ? notYet.length > 0
+                        ? `No available tasks match "${searchQuery}" — see Not yet below.`
+                        : `No tasks match "${searchQuery}".`
+                      : undefined
+                  }
+                  openInDesktopApp={openInDesktopApp}
+                  leadById={leadById}
+                />
+              )}
+            </section>
+
+            {notYet.length > 0 && (
+              <section className="not-yet">
+                <SectionToggle
+                  title="Not yet"
+                  count={notYet.length}
+                  expanded={notYetExpanded}
+                  onToggle={() => toggleSection('notYet')}
+                />
+                {notYetExpanded && (
+                  <TaskTable
+                    ranked={notYet}
+                    projectsById={projectsById}
+                    sectionsById={sectionsById}
+                    completingIds={completingIds}
+                    onComplete={handleComplete}
+                    taskIdsWithComments={taskIdsWithComments}
+                    emptyMessage={null}
+                    openInDesktopApp={openInDesktopApp}
+                    leadById={leadById}
+                    showOpens
+                  />
+                )}
+              </section>
+            )}
           </main>
         )}
 
-        <DragOverlay>{activeDragTask ? <div className="drag-overlay-card">{activeDragTask.content}</div> : null}</DragOverlay>
+        <DragOverlay>
+          {activeDragTask ? <div className="drag-overlay-card">{activeDragTask.content}</div> : null}
+        </DragOverlay>
       </DndContext>
 
       <SettingsPanel
@@ -767,11 +930,15 @@ export default function App() {
         onToggleAllProjects={handleToggleAllProjects}
         assignmentMode={assignmentMode}
         onAssignmentModeChange={setAssignmentMode}
-        labelBonuses={labelBonuses}
+        leadTimes={leadTimes}
         availableLabels={labels.map((l) => l.name)}
-        onSetLabelBonus={handleSetLabelBonus}
-        onRemoveLabelBonus={handleRemoveLabelBonus}
-        onResetLabelBonuses={handleResetLabelBonuses}
+        onSetLeadTime={handleSetLeadTime}
+        onRemoveLeadTime={handleRemoveLeadTime}
+        onResetLeadTimes={handleResetLeadTimes}
+        holdLabels={holdLabels}
+        onAddHoldLabel={handleAddHoldLabel}
+        onRemoveHoldLabel={handleRemoveHoldLabel}
+        onResetHoldLabels={handleResetHoldLabels}
         openInDesktopApp={openInDesktopApp}
         onOpenInDesktopAppChange={setOpenInDesktopApp}
       />

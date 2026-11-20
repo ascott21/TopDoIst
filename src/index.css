@@ -192,9 +192,13 @@ select {
 }
 
 .settings-section {
-  padding-bottom: 1.25rem;
-  margin-bottom: 1.25rem;
+  padding-bottom: 0.6rem;
+  margin-bottom: 0.6rem;
   border-bottom: 1px solid var(--border);
+}
+
+.settings-section-body {
+  padding-bottom: 0.6rem;
 }
 
 .settings-section:last-child {
@@ -232,13 +236,6 @@ select {
   border-bottom: 1px solid var(--border);
 }
 
-.weight-controls-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 0.5rem;
-}
-
 .weight-controls h2 {
   font-size: 0.85rem;
   text-transform: uppercase;
@@ -273,29 +270,14 @@ select {
   color: var(--text-muted);
 }
 
-/* Label bonuses */
-.settings-subheader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 0.5rem;
-}
-
-.settings-subheader h2 {
-  font-size: 0.85rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-muted);
-  margin: 0;
-}
-
-.label-bonus-empty {
+/* Lead times */
+.lead-time-empty {
   font-size: 0.85rem;
   color: var(--text-muted);
   margin: 0 0 0.75rem;
 }
 
-.label-bonus-list {
+.lead-time-list {
   list-style: none;
   margin: 0 0 0.75rem;
   padding: 0;
@@ -304,14 +286,14 @@ select {
   gap: 0.4rem;
 }
 
-.label-bonus-row,
-.label-bonus-add {
+.lead-time-row,
+.lead-time-add {
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
 
-.label-bonus-name {
+.lead-time-name {
   flex: 1;
   font-size: 0.9rem;
   overflow: hidden;
@@ -319,13 +301,13 @@ select {
   white-space: nowrap;
 }
 
-.label-bonus-add-name {
+.lead-time-add-name {
   flex: 1;
   min-width: 0;
 }
 
-.label-bonus-points {
-  width: 5rem;
+.lead-time-amount {
+  width: 4rem;
 }
 
 /* Complete checkbox (see CompleteCheckbox.jsx) */
@@ -414,20 +396,20 @@ select {
   background: var(--surface);
   border: 1px dashed var(--border);
   border-radius: 8px;
-  padding: 1rem;
-  margin-bottom: 1.5rem;
+  padding: 0.5rem 1rem;
+  margin-bottom: 1rem;
 }
 
-.up-next-empty.is-drag-over {
+.up-next > :last-child:not(.section-header) {
+  margin-bottom: 0.5rem;
+}
+
+.up-next.is-drag-over {
+  border-color: var(--accent);
+}
+
+.up-next.is-drag-over .up-next-empty {
   color: var(--accent);
-}
-
-.up-next h2 {
-  font-size: 0.85rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-muted);
-  margin: 0 0 0.75rem;
 }
 
 .up-next-empty {
@@ -635,21 +617,115 @@ select {
   font-variant-numeric: tabular-nums;
 }
 
-.up-next-header {
+/* Lead-time conflict flag (two+ lead labels on one task) */
+.lead-conflict {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #b25e00;
+  background: rgba(230, 140, 20, 0.14);
+  border-radius: 4px;
+  padding: 0 0.35rem;
+  white-space: nowrap;
+}
+
+@media (prefers-color-scheme: dark) {
+  .lead-conflict {
+    color: #f0a54a;
+  }
+}
+
+/* "Not yet" section — tasks whose lead time hasn't opened */
+.not-yet {
+  margin-top: 1rem;
+}
+
+.section-header {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  flex-wrap: wrap;
-  margin: 0 0 0.75rem;
 }
 
-.up-next .up-next-header h2 {
-  margin: 0;
+.section-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 1;
+  background: none;
+  border: none;
+  padding: 0.4rem 0;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  cursor: pointer;
+  text-align: left;
 }
 
-.up-next-total {
+.section-toggle:hover {
+  color: var(--text);
+}
+
+.section-chevron {
+  display: inline-block;
+  width: 0.8em;
+}
+
+.section-extra {
   font-size: 0.8rem;
   color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.section-header + * {
+  margin-top: 0.5rem;
+}
+
+.not-yet .task-table {
+  opacity: 0.8;
+}
+
+.opens-due {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* Hold labels (e.g. "waiting") */
+.hold-list {
+  list-style: none;
+  margin: 0 0 0.6rem;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.hold-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.1rem 0.25rem 0.1rem 0.6rem;
+}
+
+.hold-remove {
+  border: none;
+  background: none;
+  padding: 0 0.3rem;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.hold-remove:hover {
+  color: var(--accent);
+}
+
+.opens-held {
+  font-style: italic;
+  text-transform: capitalize;
 }
