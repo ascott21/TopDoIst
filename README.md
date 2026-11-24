@@ -236,6 +236,11 @@ keep it in the header so it works even while collapsed. The sections:
   an "All projects" master checkbox too. This applies to Up Next as well
   as the ranked table — a task in an unchecked project stays hidden even
   if it's labeled Up Next.
+- **Subtasks** — "Hide subtasks" keeps every subtask (anything with a
+  parent task in Todoist) out of the ranked table and Not yet, so only
+  top-level tasks get ranked. Off by default. A subtask you've already put
+  in Up Next stays there, the same way Up Next overrides lead times and
+  holds. Saved in this browser like the other settings.
 - **Weights** — sliders for the four scoring signals described above
   (Duration runs negative to positive; the rest start at zero). Changes
   re-rank instantly using the tasks already loaded (no need to refetch),
@@ -266,8 +271,11 @@ keep it in the header so it works even while collapsed. The sections:
 Each task's project (and section, if it's in one) shows in small type
 under its title, followed by its duration with a small clock icon (e.g. "30m", or "2d" for one
 set in days) when it has one in Todoist. A small document icon there means the task has a
-description; a speech-bubble icon means it has comments — no counts, just
-a nudge that there's more worth a look before you start it. The
+description; a speech-bubble icon means it has comments; a small branch
+icon means it has at least one open subtask (shown whether or not
+subtasks are hidden) — no counts, just a nudge that there's more worth a
+look before you start it. The subtask icon is as current as the task list,
+since it's worked out from the tasks themselves. The
 description icon is always current (it comes free with every task); the
 comments icon is refreshed only on a full load or manual Refresh, not on
 every 15-second background poll — see [Live updates](#live-updates) for

@@ -63,6 +63,8 @@ export default function SettingsPanel({
   onResetHoldLabels,
   openInDesktopApp,
   onOpenInDesktopAppChange,
+  hideSubtasks,
+  onHideSubtasksChange,
 }) {
   const [collapsed, setCollapsed] = useState(loadCollapsed)
 
@@ -137,6 +139,18 @@ export default function SettingsPanel({
             onToggleProject={onToggleProject}
             onToggleAll={onToggleAllProjects}
           />
+        </SettingsSection>
+
+        <SettingsSection id="subtasks" title="Subtasks" {...sectionProps}>
+          <label className="checkbox-option">
+            <input type="checkbox" checked={hideSubtasks} onChange={(e) => onHideSubtasksChange(e.target.checked)} />
+            Hide subtasks
+          </label>
+          <span className="weight-hint">
+            Keeps subtasks out of the ranked list and Not yet, so only top-level tasks are ranked.
+            A subtask already in Up Next stays there. Tasks with open subtasks show a small
+            branch icon either way.
+          </span>
         </SettingsSection>
 
         <SettingsSection

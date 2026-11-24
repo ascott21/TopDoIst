@@ -16,7 +16,7 @@ import { taskUrl, formatProjectMeta, formatDue, isOverdue } from '../lib/taskDis
 // there are no items to drop next to.
 export const UP_NEXT_DROPPABLE_ID = 'up-next'
 
-function UpNextItem({ task, lead, projectsById, sectionsById, isCompleting, onComplete, onRemove, hasComments, openInDesktopApp }) {
+function UpNextItem({ task, lead, projectsById, sectionsById, isCompleting, onComplete, onRemove, hasComments, hasSubtasks, openInDesktopApp }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id })
   const dragProps = { ...attributes, ...listeners }
   const style = { transform: CSS.Transform.toString(transform), transition }
@@ -45,7 +45,7 @@ function UpNextItem({ task, lead, projectsById, sectionsById, isCompleting, onCo
             <span className={isOverdue(task.due) ? 'due-overdue' : undefined}>· {formatDue(task.due)}</span>
           )}
           <DurationChip task={task} />
-          <TaskIndicators hasDescription={!!task.description?.trim()} hasComments={hasComments} />
+          <TaskIndicators hasDescription={!!task.description?.trim()} hasComments={hasComments} hasSubtasks={hasSubtasks} />
           <LeadConflictFlag lead={lead} />
         </span>
       </span>
@@ -97,6 +97,7 @@ export default function UpNext({
   onComplete,
   onRemove,
   taskIdsWithComments,
+  taskIdsWithSubtasks,
   openInDesktopApp,
   defaultDurationMinutes,
   leadById,
@@ -127,6 +128,7 @@ export default function UpNext({
                 onComplete={onComplete}
                 onRemove={onRemove}
                 hasComments={taskIdsWithComments.has(task.id)}
+                hasSubtasks={taskIdsWithSubtasks.has(task.id)}
                 openInDesktopApp={openInDesktopApp}
               />
             ))}

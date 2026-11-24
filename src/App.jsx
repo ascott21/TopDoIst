@@ -51,6 +51,7 @@ const SECTION_OPEN_KEYS = {
 const SECTION_OPEN_DEFAULTS = { upNext: true, ranked: true, notYet: false }
 const FOCUS_MODE_KEY = 'topdoist:focusMode'
 const OPEN_IN_DESKTOP_APP_KEY = 'topdoist:openInDesktopApp'
+const HIDE_SUBTASKS_KEY = 'topdoist:hideSubtasks'
 const WEIGHTS_KEY = 'topdoist:weights'
 const DEFAULT_DURATION_KEY = 'topdoist:defaultDurationMinutes'
 const POLL_INTERVAL_MS = 15000
@@ -221,6 +222,16 @@ function loadOpenInDesktopApp() {
   }
 }
 
+// Off by default, so subtasks rank alongside everything else until you
+// choose otherwise.
+function loadHideSubtasks() {
+  try {
+    return localStorage.getItem(HIDE_SUBTASKS_KEY) === 'true'
+  } catch {
+    return false
+  }
+}
+
 // Matches a task's title, description, labels, project name, and section
 // name — whichever the query shows up in, case-insensitively. Touches the
 // ranked list and "Not yet"; Up Next is short and manually curated, so
@@ -258,6 +269,7 @@ export default function App() {
   const [assignmentMode, setAssignmentMode] = useState(loadAssignmentMode)
   const [focusMode, setFocusMode] = useState(loadFocusMode)
   const [openInDesktopApp, setOpenInDesktopApp] = useState(loadOpenInDesktopApp)
+  const [hideSubtasks, setHideSubtasks] = useState(loadHideSubtasks)
   const [searchQuery, setSearchQuery] = useState('')
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -387,6 +399,13 @@ export default function App() {
       // ignore storage failures
     }
   }, [openInDesktopApp])
+  useEffect(() => {
+    try {
+      localStorage.setItem(HIDE_SUBTASKS_KEY, String(hideSubtasks))
+    } catch {
+      // ignore storage failures
+    }
+  }, [hideSubtasks])
 
   // `silent` is what a background poll uses: no "Refreshing…" flicker on
   // the button, and a failure (e.g. one dropped request) is swallowed
@@ -482,6 +501,15 @@ export default function App() {
   const sectionsById = useMemo(() => Object.fromEntries(sections.map((s) => [s.id, s])), [sections])
   const tasksById = useMemo(() => Object.fromEntries(tasks.map((t) => [t.id, t])), [tasks])
 
+  // Parents of at least one open subtask. Built from the active-task fetch,
+  // so it's current on every poll, and it ignores completed subtasks (those
+  // aren't fetched) — a parent whose subtasks are all done loses the icon.
+  // Shown whether or not subtasks themselves are hidden.
+  const taskIdsWithSubtasks = useMemo(
+    () => new Set(tasks.filter((t) => t.parent_id).map((t) => t.parent_id)),
+    [tasks],
+  )
+
   // Each task's lead-time state: when it opens, whether it's open yet, and
   // whether it carries conflicting lead labels. Recomputed when tasks
   // refresh, when lead-time settings change, and once a minute.
@@ -520,13 +548,17 @@ export default function App() {
   const filteredTasks = useMemo(() => {
     return tasks.filter((t) => {
       if (hasUpNextLabel(t)) return false
+      // Hiding subtasks applies to the ranked list and Not yet only — a
+      // subtask you've put in Up Next yourself stays there, the same way Up
+      // Next overrides lead times and holds.
+      if (hideSubtasks && t.parent_id) return false
       if (selectedProjectIds !== null && !selectedProjectIds.includes(t.project_id)) return false
       if (!passesAssignmentFilter(t, { mode: assignmentMode, project: projectsById[t.project_id], currentUserId })) {
         return false
       }
       return true
     })
-  }, [tasks, selectedProjectIds, assignmentMode, projectsById, currentUserId])
+  }, [tasks, selectedProjectIds, assignmentMode, projectsById, currentUserId, hideSubtasks])
 
   const searchedTasks = useMemo(
     () => filteredTasks.filter((t) => taskMatchesSearch(t, searchQuery, { projectsById, sectionsById })),
@@ -827,6 +859,7 @@ export default function App() {
           onComplete={handleComplete}
           onRemove={handleRemoveFromUpNext}
           taskIdsWithComments={taskIdsWithComments}
+          taskIdsWithSubtasks={taskIdsWithSubtasks}
           openInDesktopApp={openInDesktopApp}
           defaultDurationMinutes={defaultDurationMinutes}
           leadById={leadById}
@@ -870,6 +903,7 @@ export default function App() {
                   completingIds={completingIds}
                   onComplete={handleComplete}
                   taskIdsWithComments={taskIdsWithComments}
+                  taskIdsWithSubtasks={taskIdsWithSubtasks}
                   emptyMessage={
                     searchQuery
                       ? notYet.length > 0
@@ -899,6 +933,7 @@ export default function App() {
                     completingIds={completingIds}
                     onComplete={handleComplete}
                     taskIdsWithComments={taskIdsWithComments}
+                    taskIdsWithSubtasks={taskIdsWithSubtasks}
                     emptyMessage={null}
                     openInDesktopApp={openInDesktopApp}
                     leadById={leadById}
@@ -941,6 +976,8 @@ export default function App() {
         onResetHoldLabels={handleResetHoldLabels}
         openInDesktopApp={openInDesktopApp}
         onOpenInDesktopAppChange={setOpenInDesktopApp}
+        hideSubtasks={hideSubtasks}
+        onHideSubtasksChange={setHideSubtasks}
       />
     </div>
   )
