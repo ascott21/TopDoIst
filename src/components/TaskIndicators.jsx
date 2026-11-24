@@ -2,8 +2,10 @@
 // worth a look." Description comes free with every task fetch; comments
 // don't (see fetchCommentsForProject in api/todoist.js), so `hasComments`
 // may lag behind `hasDescription` in freshness — see App.jsx.
-export default function TaskIndicators({ hasDescription, hasComments }) {
-  if (!hasDescription && !hasComments) return null
+// `hasSubtasks` means at least one open subtask, worked out from the task
+// list itself, so it's as fresh as the tasks.
+export default function TaskIndicators({ hasDescription, hasComments, hasSubtasks }) {
+  if (!hasDescription && !hasComments && !hasSubtasks) return null
 
   return (
     <span className="task-indicators">
@@ -40,6 +42,29 @@ export default function TaskIndicators({ hasDescription, hasComments }) {
             strokeWidth="1.3"
             strokeLinejoin="round"
           />
+        </svg>
+      )}
+      {hasSubtasks && (
+        <svg
+          className="task-indicator-icon"
+          viewBox="0 0 16 16"
+          width="11"
+          height="11"
+          aria-label="Has subtasks"
+          role="img"
+        >
+          <title>Has subtasks</title>
+          {/* A parent with two children branching off it. */}
+          <path
+            d="M4 2.5v9.5h5M4 6.5h5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <circle cx="11" cy="6.5" r="1.6" fill="none" stroke="currentColor" strokeWidth="1.3" />
+          <circle cx="11" cy="12" r="1.6" fill="none" stroke="currentColor" strokeWidth="1.3" />
         </svg>
       )}
     </span>

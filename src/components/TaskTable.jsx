@@ -7,7 +7,7 @@ import LeadConflictFlag from './LeadConflictFlag'
 import { formatMinutes } from '../lib/duration'
 import { taskUrl, formatProjectMeta, formatDue, formatOpens, isOverdue } from '../lib/taskDisplay'
 
-function TaskRow({ task, breakdown, lead, showOpens, projectsById, sectionsById, isCompleting, onComplete, hasComments, openInDesktopApp }) {
+function TaskRow({ task, breakdown, lead, showOpens, projectsById, sectionsById, isCompleting, onComplete, hasComments, hasSubtasks, openInDesktopApp }) {
   // Deliberately not sortable — this list is algorithmically ranked, not
   // manually reorderable. Dragging one out just needs a source; where it's
   // dropped (Up Next) is what makes it sortable.
@@ -62,7 +62,7 @@ function TaskRow({ task, breakdown, lead, showOpens, projectsById, sectionsById,
           <PriorityDot priority={task.priority} />
           <span className="task-meta-project">{formatProjectMeta(task, projectsById, sectionsById)}</span>
           <DurationChip task={task} />
-          <TaskIndicators hasDescription={!!task.description?.trim()} hasComments={hasComments} />
+          <TaskIndicators hasDescription={!!task.description?.trim()} hasComments={hasComments} hasSubtasks={hasSubtasks} />
           <LeadConflictFlag lead={lead} />
         </div>
       </td>
@@ -87,6 +87,7 @@ export default function TaskTable({
   completingIds,
   onComplete,
   taskIdsWithComments,
+  taskIdsWithSubtasks,
   emptyMessage,
   openInDesktopApp,
   leadById,
@@ -119,6 +120,7 @@ export default function TaskTable({
             isCompleting={completingIds.has(task.id)}
             onComplete={onComplete}
             hasComments={taskIdsWithComments.has(task.id)}
+            hasSubtasks={taskIdsWithSubtasks.has(task.id)}
             openInDesktopApp={openInDesktopApp}
           />
         ))}
